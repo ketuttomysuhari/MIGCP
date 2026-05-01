@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Monitoring GCP/ICP + KML/KMZ</title>
+  <title>Realtime Monitoring GCP ICP</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -11,55 +11,154 @@
   <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
   <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
   <style>
-    body { margin:0; font-family:Arial, sans-serif; }
-    #map { width:100%; height:100vh; }
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
 
     .panel {
-      position:absolute;
-      top:14px;
-      left:14px;
-      z-index:999;
-      width:330px;
-      background:white;
-      padding:14px;
-      border-radius:14px;
-      box-shadow:0 4px 20px rgba(0,0,0,.25);
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 999;
+      width: 380px;
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      background: rgba(255,255,255,0.97);
+      padding: 14px;
+      border-radius: 16px;
+      box-shadow: 0 6px 28px rgba(0,0,0,0.28);
     }
 
-    .panel h3 { margin:0 0 10px; }
-    .panel input, .panel button {
-      width:100%;
-      padding:10px;
-      margin:5px 0;
-      border-radius:8px;
-      border:1px solid #ccc;
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
     }
 
-    .panel button {
-      border:0;
-      color:white;
-      font-weight:bold;
-      cursor:pointer;
-      background:#2563eb;
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
     }
 
-    .btn-green { background:#16a34a !important; }
-    .btn-red { background:#dc2626 !important; }
-
-    .info {
-      margin-top:8px;
-      padding:8px;
-      border-radius:8px;
-      background:#f1f5f9;
-      font-size:13px;
-      line-height:1.5;
+    button {
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      background: #2563eb;
     }
 
-    .legend {
-      margin-top:8px;
-      font-size:13px;
-      line-height:1.6;
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .btn-green {
+      background: #16a34a;
+    }
+
+    .btn-red {
+      background: #dc2626;
+    }
+
+    .btn-dark {
+      background: #334155;
+    }
+
+    .box {
+      background: #f1f5f9;
+      padding: 10px;
+      border-radius: 12px;
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .chat-box {
+      height: 150px;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 13px;
+    }
+
+    .chat-item {
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      margin: 6px 0;
+    }
+
+    .layer-item input {
+      width: auto;
+      margin: 0;
+    }
+
+    .surveyor-item {
+      padding: 6px;
+      border-radius: 8px;
+      margin: 4px 0;
+      background: white;
+      cursor: pointer;
+      border: 1px solid #e2e8f0;
+    }
+
+    .surveyor-item:hover {
+      background: #e0f2fe;
+    }
+
+    .small {
+      color: #475569;
+      font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .panel {
+        left: 8px;
+        right: 8px;
+        top: auto;
+        bottom: 8px;
+        width: auto;
+        max-height: 52vh;
+        border-radius: 16px;
+      }
+
+      #map {
+        height: 100vh;
+      }
+    }
+
+    @media (min-width: 769px) and (max-width: 1100px) {
+      .panel {
+        width: 340px;
+      }
     }
   </style>
 </head>
@@ -67,58 +166,117 @@
 <body>
 
 <div class="panel">
-  <h3>Monitoring GCP / ICP</h3>
+  <h3>Realtime GCP / ICP Monitoring</h3>
+
+  <input type="text" id="surveyorName" placeholder="Nama surveyor, contoh: Surveyor 1" />
+  <button onclick="startSurveyor()">Aktifkan GPS</button>
 
   <input type="file" id="fileInput" accept=".kml,.kmz" multiple />
+  <button class="btn-dark" onclick="uploadFiles()">Upload KML / KMZ ke Sistem</button>
 
-  <button onclick="aktifkanGPS()">Aktifkan GPS Surveyor</button>
-  <button class="btn-green" onclick="tandaiTerdekatSelesai()">Tandai Titik Terdekat Selesai</button>
-  <button class="btn-red" onclick="resetStatus()">Reset Status</button>
+  <button class="btn-green" onclick="markNearestDone()">Tandai Titik Terdekat Selesai</button>
+  <button class="btn-red" onclick="resetPointStatus()">Reset Semua Status Titik</button>
 
-  <div class="info">
-    <b>GPS Surveyor</b><br>
+  <div class="box">
+    <b>GPS Saya</b><br>
+    Nama: <span id="myName">-</span><br>
     Lat: <span id="lat">-</span><br>
     Lng: <span id="lng">-</span><br>
     Akurasi: <span id="acc">-</span> m<br>
-    Titik terdekat: <span id="nearest">-</span><br>
+    Terdekat: <span id="nearest">-</span><br>
     Jarak: <span id="dist">-</span> m
   </div>
 
-  <div class="legend">
+  <div class="box">
+    <b>Surveyor Aktif</b>
+    <div id="activeSurveyors">-</div>
+  </div>
+
+  <div class="box">
+    <b>Layer Data</b>
+    <div id="layerList">Belum ada layer</div>
+  </div>
+
+  <div class="box">
+    <b>Chat Lapangan</b>
+    <div id="chatBox" class="chat-box"></div>
+    <input type="text" id="chatInput" placeholder="Tulis pesan..." />
+    <button onclick="sendChat()">Kirim Chat</button>
+  </div>
+
+  <div class="box">
     🔵 Surveyor aktif<br>
     🔴 GCP<br>
     🟠 ICP<br>
+    ⚫ BM<br>
     🟢 Selesai<br>
-    🟣 Batas / polygon / area
+    🟣 Batas / polygon
   </div>
 </div>
 
 <div id="map"></div>
 
 <script>
-  let map;
-  let dataLayer = L.featureGroup();
-  let surveyorMarker = null;
-  let surveyorAccuracy = null;
-  let surveyorPosition = null;
+  // ==================================================
+  // 1. FIREBASE CONFIG
+  // ==================================================
+  const firebaseConfig = {
+    apiKey: "ISI_API_KEY_ANDA",
+    authDomain: "ISI_PROJECT.firebaseapp.com",
+    databaseURL: "https://ISI_PROJECT-default-rtdb.firebaseio.com",
+    projectId: "ISI_PROJECT",
+    storageBucket: "ISI_PROJECT.appspot.com",
+    messagingSenderId: "ISI_SENDER_ID",
+    appId: "ISI_APP_ID"
+  };
 
-  let pointData = [];
+  firebase.initializeApp(firebaseConfig);
+
+  const db = firebase.database();
+  const storage = firebase.storage();
+
+  // ==================================================
+  // 2. GLOBAL VARIABLE
+  // ==================================================
+  let map;
+  let baseLayers = {};
+  let layerGroups = {};
+  let pointData = {};
   let pointMarkers = {};
-  let statusData = JSON.parse(localStorage.getItem("status_gcp_icp")) || {};
+  let surveyorMarkers = {};
+  let surveyorAccuracies = {};
+
+  let selectedFiles = [];
+  let myPosition = null;
+  let myRef = null;
+  let watchId = null;
 
   const RADIUS_SELESAI = 25;
 
+  let myId = localStorage.getItem("my_surveyor_id");
+  if (!myId) {
+    myId = "surveyor_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+    localStorage.setItem("my_surveyor_id", myId);
+  }
+
+  // ==================================================
+  // 3. INIT
+  // ==================================================
   initMap();
+  listenSurveyors();
+  listenLayers();
+  listenPointStatus();
+  listenChat();
 
   function initMap() {
     map = L.map("map").setView([-8.3, 123.1], 15);
 
-    const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    baseLayers.osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 22,
       attribution: "© OpenStreetMap"
     }).addTo(map);
 
-    const satelit = L.tileLayer(
+    baseLayers.satellite = L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
         maxZoom: 22,
@@ -127,229 +285,102 @@
     );
 
     L.control.layers({
-      "OpenStreetMap": osm,
-      "Satelit Esri": satelit
+      "OpenStreetMap": baseLayers.osm,
+      "Satelit Esri": baseLayers.satellite
     }).addTo(map);
-
-    dataLayer.addTo(map);
   }
 
-  document.getElementById("fileInput").addEventListener("change", async function(e) {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-
-    for (const file of files) {
-      const ext = file.name.toLowerCase().split(".").pop();
-
-      if (ext === "kml") {
-        const kmlText = await file.text();
-        tampilkanKML(kmlText, file.name);
-      }
-
-      if (ext === "kmz") {
-        const kmlTexts = await bacaKMZ(file);
-        kmlTexts.forEach((item, index) => {
-          tampilkanKML(item.text, file.name + " / " + item.name);
-        });
-      }
-    }
-
-    if (dataLayer.getLayers().length > 0) {
-      map.fitBounds(dataLayer.getBounds(), { padding: [30, 30] });
-    }
+  // ==================================================
+  // 4. FILE UPLOAD KML / KMZ
+  // ==================================================
+  document.getElementById("fileInput").addEventListener("change", function(e) {
+    selectedFiles = Array.from(e.target.files);
   });
 
-  async function bacaKMZ(file) {
-    const zip = await JSZip.loadAsync(file);
-    const hasil = [];
-
-    const entries = Object.keys(zip.files);
-
-    for (const path of entries) {
-      if (path.toLowerCase().endsWith(".kml")) {
-        const text = await zip.files[path].async("text");
-        hasil.push({ name: path, text });
-      }
+  async function uploadFiles() {
+    if (!selectedFiles.length) {
+      alert("Pilih file KML/KMZ dulu.");
+      return;
     }
 
-    if (hasil.length === 0) {
-      alert("KMZ tidak berisi file KML: " + file.name);
+    for (const file of selectedFiles) {
+      const ext = file.name.toLowerCase().split(".").pop();
+
+      if (ext !== "kml" && ext !== "kmz") {
+        alert("File harus .kml atau .kmz: " + file.name);
+        continue;
+      }
+
+      const fileId = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+      const storagePath = "kml_kmz/" + fileId + "_" + file.name;
+
+      const ref = storage.ref(storagePath);
+      await ref.put(file);
+
+      const url = await ref.getDownloadURL();
+
+      await db.ref("layers/" + fileId).set({
+        id: fileId,
+        name: file.name,
+        url: url,
+        storagePath: storagePath,
+        createdAt: Date.now(),
+        uploadedBy: document.getElementById("surveyorName").value || "Unknown"
+      });
     }
 
-    return hasil;
+    alert("File berhasil diupload. Layer akan muncul untuk semua pengguna.");
+    document.getElementById("fileInput").value = "";
+    selectedFiles = [];
   }
 
-  function tampilkanKML(kmlText, sourceName) {
-    const parser = new DOMParser();
-    const kml = parser.parseFromString(kmlText, "text/xml");
-    const geojson = toGeoJSON.kml(kml);
+  // ==================================================
+  // 5. GPS MULTIPLAYER SURVEYOR
+  // ==================================================
+  function startSurveyor() {
+    const name = document.getElementById("surveyorName").value.trim();
 
-    const layer = L.geoJSON(geojson, {
-      pointToLayer: function(feature, latlng) {
-        const nama = ambilNama(feature);
-        const tipe = deteksiTipe(nama, feature);
-        const id = buatId(feature, latlng, sourceName);
-        const selesai = statusData[id] === "selesai";
+    if (!name) {
+      alert("Isi nama surveyor terlebih dahulu.");
+      return;
+    }
 
-        const warna = selesai ? "#16a34a" : warnaTitik(tipe);
+    document.getElementById("myName").innerText = name;
 
-        const marker = L.circleMarker(latlng, {
-          radius: tipe === "GCP" || tipe === "ICP" ? 9 : 7,
-          color: warna,
-          fillColor: warna,
-          fillOpacity: 0.95,
-          weight: 2
-        });
+    myRef = db.ref("surveyors/" + myId);
+    myRef.onDisconnect().remove();
 
-        pointData.push({
-          id,
-          nama,
-          tipe,
-          lat: latlng.lat,
-          lng: latlng.lng,
-          sourceName
-        });
-
-        pointMarkers[id] = marker;
-
-        marker.bindTooltip(nama, {
-          direction: "top",
-          sticky: true
-        });
-
-        marker.bindPopup(`
-          <b>${nama}</b><br>
-          File: ${sourceName}<br>
-          Tipe: ${tipe}<br>
-          Status: <b>${selesai ? "Selesai" : "Belum selesai"}</b><br>
-          Lat: ${latlng.lat.toFixed(7)}<br>
-          Lng: ${latlng.lng.toFixed(7)}<br><br>
-          <button onclick="tandaiSelesai('${id}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
-            Tandai Selesai
-          </button>
-        `);
-
-        return marker;
-      },
-
-      style: function(feature) {
-        const tipe = feature.geometry ? feature.geometry.type : "";
-
-        if (tipe.includes("Polygon")) {
-          return {
-            color: "#7c3aed",
-            weight: 3,
-            opacity: 0.95,
-            fillColor: "#a78bfa",
-            fillOpacity: 0.15,
-            dashArray: "8,6"
-          };
-        }
-
-        if (tipe.includes("LineString")) {
-          return {
-            color: "#7c3aed",
-            weight: 3,
-            opacity: 0.95,
-            dashArray: "8,6"
-          };
-        }
-
-        return {
-          color: "#7c3aed",
-          weight: 2
-        };
-      },
-
-      onEachFeature: function(feature, layer) {
-        const nama = ambilNama(feature);
-        const tipeGeom = feature.geometry ? feature.geometry.type : "Unknown";
-        const tipe = deteksiTipe(nama, feature);
-
-        if (tipeGeom !== "Point") {
-          layer.bindTooltip(nama || "Batas Area", {
-            sticky: true
-          });
-
-          layer.bindPopup(`
-            <b>${nama || "Batas Area"}</b><br>
-            File: ${sourceName}<br>
-            Geometri: ${tipeGeom}<br>
-            Tipe: ${tipe}
-          `);
-        }
-      }
-    });
-
-    layer.addTo(dataLayer);
-  }
-
-  function ambilNama(feature) {
-    const p = feature.properties || {};
-    return (
-      p.name ||
-      p.Name ||
-      p.NAMA ||
-      p.Nama ||
-      p.description ||
-      p.Description ||
-      "Tanpa Nama"
-    );
-  }
-
-  function deteksiTipe(nama, feature) {
-    const text = JSON.stringify(feature.properties || {}).toUpperCase() + " " + String(nama).toUpperCase();
-
-    if (text.includes("GCP")) return "GCP";
-    if (text.includes("ICP")) return "ICP";
-    if (text.includes("CONTROL")) return "GCP";
-    if (text.includes("CHECK")) return "ICP";
-
-    const geom = feature.geometry ? feature.geometry.type : "";
-
-    if (geom.includes("Polygon")) return "BATAS";
-    if (geom.includes("LineString")) return "GARIS/BATAS";
-    if (geom === "Point") return "TITIK";
-
-    return "DATA";
-  }
-
-  function warnaTitik(tipe) {
-    if (tipe === "GCP") return "#dc2626";
-    if (tipe === "ICP") return "#f59e0b";
-    if (tipe === "TITIK") return "#6366f1";
-    return "#64748b";
-  }
-
-  function buatId(feature, latlng, sourceName) {
-    const nama = ambilNama(feature);
-    return `${sourceName}_${nama}_${latlng.lat}_${latlng.lng}`.replace(/\s+/g, "_");
-  }
-
-  function aktifkanGPS() {
     if (!navigator.geolocation) {
       alert("Browser tidak mendukung GPS.");
       return;
     }
 
-    navigator.geolocation.watchPosition(
+    watchId = navigator.geolocation.watchPosition(
       function(pos) {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const acc = pos.coords.accuracy;
 
-        surveyorPosition = { lat, lng, acc };
+        myPosition = { lat, lng, acc };
 
         document.getElementById("lat").innerText = lat.toFixed(7);
         document.getElementById("lng").innerText = lng.toFixed(7);
         document.getElementById("acc").innerText = acc.toFixed(1);
 
-        tampilkanSurveyor(lat, lng, acc);
-        cariTitikTerdekat();
+        myRef.set({
+          id: myId,
+          name: name,
+          lat: lat,
+          lng: lng,
+          accuracy: acc,
+          lastUpdate: Date.now()
+        });
 
-        if (!window.gpsCentered) {
+        updateNearestPoint();
+
+        if (!window.hasCenteredGPS) {
           map.setView([lat, lng], 19);
-          window.gpsCentered = true;
+          window.hasCenteredGPS = true;
         }
       },
       function(err) {
@@ -363,88 +394,342 @@
     );
   }
 
-  function tampilkanSurveyor(lat, lng, acc) {
-    const pos = [lat, lng];
+  function listenSurveyors() {
+    db.ref("surveyors").on("value", function(snapshot) {
+      const data = snapshot.val() || {};
+      const activeIds = Object.keys(data);
 
-    if (!surveyorMarker) {
-      surveyorMarker = L.circleMarker(pos, {
-        radius: 10,
-        color: "#1d4ed8",
-        fillColor: "#2563eb",
-        fillOpacity: 1,
-        weight: 3
-      }).addTo(map);
-
-      surveyorMarker.bindTooltip("Posisi Surveyor", {
-        permanent: true,
-        direction: "top"
+      Object.keys(surveyorMarkers).forEach(id => {
+        if (!data[id]) {
+          map.removeLayer(surveyorMarkers[id]);
+          map.removeLayer(surveyorAccuracies[id]);
+          delete surveyorMarkers[id];
+          delete surveyorAccuracies[id];
+        }
       });
 
-      surveyorAccuracy = L.circle(pos, {
-        radius: acc,
-        color: "#2563eb",
-        fillColor: "#60a5fa",
-        fillOpacity: 0.15,
-        weight: 1
-      }).addTo(map);
-    } else {
-      surveyorMarker.setLatLng(pos);
-      surveyorAccuracy.setLatLng(pos);
-      surveyorAccuracy.setRadius(acc);
+      let html = "";
+
+      activeIds.forEach(id => {
+        const s = data[id];
+        const pos = [s.lat, s.lng];
+
+        html += `
+          <div class="surveyor-item" onclick="focusSurveyor('${id}')">
+            🔵 <b>${escapeHtml(s.name)}</b><br>
+            <span class="small">${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}</span>
+          </div>
+        `;
+
+        if (!surveyorMarkers[id]) {
+          surveyorMarkers[id] = L.circleMarker(pos, {
+            radius: 10,
+            color: "#1d4ed8",
+            fillColor: "#2563eb",
+            fillOpacity: 1,
+            weight: 3
+          }).addTo(map);
+
+          surveyorAccuracies[id] = L.circle(pos, {
+            radius: s.accuracy || 5,
+            color: "#2563eb",
+            fillColor: "#60a5fa",
+            fillOpacity: 0.15,
+            weight: 1
+          }).addTo(map);
+        } else {
+          surveyorMarkers[id].setLatLng(pos);
+          surveyorAccuracies[id].setLatLng(pos);
+          surveyorAccuracies[id].setRadius(s.accuracy || 5);
+        }
+
+        surveyorMarkers[id].bindTooltip(s.name, {
+          permanent: true,
+          direction: "top"
+        });
+
+        surveyorMarkers[id].bindPopup(`
+          <b>${escapeHtml(s.name)}</b><br>
+          Lat: ${s.lat.toFixed(7)}<br>
+          Lng: ${s.lng.toFixed(7)}<br>
+          Akurasi: ${(s.accuracy || 0).toFixed(1)} m<br>
+          Update: ${new Date(s.lastUpdate).toLocaleTimeString()}
+        `);
+      });
+
+      document.getElementById("activeSurveyors").innerHTML = html || "-";
+    });
+  }
+
+  function focusSurveyor(id) {
+    const marker = surveyorMarkers[id];
+    if (marker) {
+      map.setView(marker.getLatLng(), 20);
+      marker.openPopup();
     }
   }
 
-  function cariTitikTerdekat() {
-    if (!surveyorPosition || pointData.length === 0) return;
+  // ==================================================
+  // 6. LOAD LAYER DARI FIREBASE
+  // ==================================================
+  function listenLayers() {
+    db.ref("layers").on("value", async function(snapshot) {
+      const layers = snapshot.val() || {};
 
-    let nearest = null;
-    let minDist = Infinity;
+      for (const id of Object.keys(layers)) {
+        if (!layerGroups[id]) {
+          await loadLayerFromUrl(layers[id]);
+        }
+      }
 
-    pointData.forEach(p => {
-      const d = map.distance(
-        [surveyorPosition.lat, surveyorPosition.lng],
-        [p.lat, p.lng]
-      );
+      Object.keys(layerGroups).forEach(id => {
+        if (!layers[id]) {
+          map.removeLayer(layerGroups[id]);
+          delete layerGroups[id];
+        }
+      });
 
-      if (d < minDist) {
-        minDist = d;
-        nearest = p;
+      renderLayerList(layers);
+    });
+  }
+
+  async function loadLayerFromUrl(layerInfo) {
+    try {
+      const response = await fetch(layerInfo.url);
+      const blob = await response.blob();
+
+      let kmlTexts = [];
+
+      if (layerInfo.name.toLowerCase().endsWith(".kmz")) {
+        const zip = await JSZip.loadAsync(blob);
+        const paths = Object.keys(zip.files);
+
+        for (const path of paths) {
+          if (path.toLowerCase().endsWith(".kml")) {
+            const text = await zip.files[path].async("text");
+            kmlTexts.push(text);
+          }
+        }
+      } else {
+        kmlTexts.push(await blob.text());
+      }
+
+      const group = L.featureGroup();
+
+      kmlTexts.forEach(kmlText => {
+        const parser = new DOMParser();
+        const kml = parser.parseFromString(kmlText, "text/xml");
+        const geojson = toGeoJSON.kml(kml);
+
+        const layer = createGeoJsonLayer(geojson, layerInfo);
+        layer.addTo(group);
+      });
+
+      group.addTo(map);
+      layerGroups[layerInfo.id] = group;
+
+      if (group.getLayers().length > 0 && !window.hasFitInitialLayer) {
+        map.fitBounds(group.getBounds(), { padding: [30, 30] });
+        window.hasFitInitialLayer = true;
+      }
+    } catch (err) {
+      console.error("Gagal load layer:", layerInfo.name, err);
+    }
+  }
+
+  function createGeoJsonLayer(geojson, layerInfo) {
+    return L.geoJSON(geojson, {
+      pointToLayer: function(feature, latlng) {
+        const name = getName(feature);
+        const type = detectType(feature, name);
+        const pointId = makePointId(layerInfo.id, feature, latlng);
+
+        const color = getPointColor(type, false);
+
+        const marker = L.circleMarker(latlng, {
+          radius: type === "GCP" || type === "ICP" || type === "BM" ? 9 : 7,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.95,
+          weight: 2
+        });
+
+        pointData[pointId] = {
+          id: pointId,
+          layerId: layerInfo.id,
+          name: name,
+          type: type,
+          lat: latlng.lat,
+          lng: latlng.lng
+        };
+
+        pointMarkers[pointId] = marker;
+
+        marker.bindTooltip(name, {
+          sticky: true,
+          direction: "top"
+        });
+
+        marker.bindPopup(`
+          <b>${escapeHtml(name)}</b><br>
+          Tipe: ${type}<br>
+          Layer: ${escapeHtml(layerInfo.name)}<br>
+          Status: <b>Belum selesai</b><br>
+          Lat: ${latlng.lat.toFixed(7)}<br>
+          Lng: ${latlng.lng.toFixed(7)}<br><br>
+          <button onclick="markPointDone('${pointId}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
+            Tandai Selesai
+          </button>
+        `);
+
+        return marker;
+      },
+
+      style: function(feature) {
+        const geom = feature.geometry ? feature.geometry.type : "";
+
+        if (geom.includes("Polygon")) {
+          return {
+            color: "#7c3aed",
+            weight: 3,
+            opacity: 0.95,
+            fillColor: "#a78bfa",
+            fillOpacity: 0.12,
+            dashArray: "8,6"
+          };
+        }
+
+        if (geom.includes("LineString")) {
+          return {
+            color: "#7c3aed",
+            weight: 3,
+            opacity: 0.95,
+            dashArray: "8,6"
+          };
+        }
+
+        return {
+          color: "#64748b",
+          weight: 2
+        };
+      },
+
+      onEachFeature: function(feature, layer) {
+        const geom = feature.geometry ? feature.geometry.type : "";
+        const name = getName(feature);
+        const type = detectType(feature, name);
+
+        if (geom !== "Point") {
+          layer.bindTooltip(name || "Batas", { sticky: true });
+          layer.bindPopup(`
+            <b>${escapeHtml(name || "Batas")}</b><br>
+            Tipe: ${type}<br>
+            Geometri: ${geom}<br>
+            Layer: ${escapeHtml(layerInfo.name)}
+          `);
+        }
       }
     });
+  }
 
-    if (!nearest) return;
+  function renderLayerList(layers) {
+    const container = document.getElementById("layerList");
+    const ids = Object.keys(layers || {});
 
-    document.getElementById("nearest").innerText = nearest.nama;
-    document.getElementById("dist").innerText = minDist.toFixed(2);
+    if (!ids.length) {
+      container.innerHTML = "Belum ada layer";
+      return;
+    }
 
-    Object.values(pointMarkers).forEach(m => {
-      m.setStyle({ weight: 2 });
-    });
+    container.innerHTML = ids.map(id => {
+      const checked = layerGroups[id] && map.hasLayer(layerGroups[id]) ? "checked" : "";
+      const name = layers[id].name || id;
 
-    if (pointMarkers[nearest.id]) {
-      pointMarkers[nearest.id].setStyle({ weight: 5 });
+      return `
+        <label class="layer-item">
+          <input type="checkbox" ${checked} onchange="toggleLayer('${id}', this.checked)" />
+          <span>${escapeHtml(name)}</span>
+        </label>
+      `;
+    }).join("");
+  }
+
+  function toggleLayer(id, show) {
+    const layer = layerGroups[id];
+    if (!layer) return;
+
+    if (show) {
+      layer.addTo(map);
+      if (layer.getLayers().length > 0) {
+        map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+      }
+    } else {
+      map.removeLayer(layer);
     }
   }
 
-  function tandaiTerdekatSelesai() {
-    if (!surveyorPosition) {
+  // ==================================================
+  // 7. STATUS TITIK GCP / ICP / BM
+  // ==================================================
+  function listenPointStatus() {
+    db.ref("pointStatus").on("value", function(snapshot) {
+      const statuses = snapshot.val() || {};
+
+      Object.keys(pointMarkers).forEach(id => {
+        const p = pointData[id];
+        if (!p) return;
+
+        const done = statuses[id] && statuses[id].status === "selesai";
+        const color = getPointColor(p.type, done);
+
+        pointMarkers[id].setStyle({
+          color: color,
+          fillColor: color,
+          weight: done ? 4 : 2
+        });
+
+        pointMarkers[id].bindPopup(`
+          <b>${escapeHtml(p.name)}</b><br>
+          Tipe: ${p.type}<br>
+          Status: <b>${done ? "Selesai" : "Belum selesai"}</b><br>
+          Lat: ${p.lat.toFixed(7)}<br>
+          Lng: ${p.lng.toFixed(7)}<br><br>
+          <button onclick="markPointDone('${id}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
+            Tandai Selesai
+          </button>
+        `);
+      });
+    });
+  }
+
+  function markPointDone(pointId) {
+    const name = document.getElementById("surveyorName").value || "Unknown";
+
+    db.ref("pointStatus/" + pointId).set({
+      status: "selesai",
+      by: name,
+      time: Date.now()
+    });
+  }
+
+  function markNearestDone() {
+    if (!myPosition) {
       alert("Aktifkan GPS dulu.");
       return;
     }
 
-    if (pointData.length === 0) {
-      alert("Upload KML/KMZ dulu.");
+    const points = Object.values(pointData);
+
+    if (!points.length) {
+      alert("Belum ada titik GCP/ICP/BM dari KML/KMZ.");
       return;
     }
 
     let nearest = null;
     let minDist = Infinity;
 
-    pointData.forEach(p => {
-      const d = map.distance(
-        [surveyorPosition.lat, surveyorPosition.lng],
-        [p.lat, p.lng]
-      );
+    points.forEach(p => {
+      const d = map.distance([myPosition.lat, myPosition.lng], [p.lat, p.lng]);
 
       if (d < minDist) {
         minDist = d;
@@ -455,57 +740,145 @@
     if (!nearest) return;
 
     if (minDist > RADIUS_SELESAI) {
-      alert(`Belum berada di titik. Jarak ke ${nearest.nama}: ${minDist.toFixed(2)} meter. Maksimal ${RADIUS_SELESAI} meter.`);
+      alert(`Titik terdekat ${nearest.name}, jarak ${minDist.toFixed(2)} m. Maksimal ${RADIUS_SELESAI} m.`);
       return;
     }
 
-    tandaiSelesai(nearest.id);
+    markPointDone(nearest.id);
   }
 
-  function tandaiSelesai(id) {
-    statusData[id] = "selesai";
-    localStorage.setItem("status_gcp_icp", JSON.stringify(statusData));
+  function updateNearestPoint() {
+    if (!myPosition) return;
 
-    const marker = pointMarkers[id];
+    const points = Object.values(pointData);
+    if (!points.length) return;
 
-    if (marker) {
-      marker.setStyle({
-        color: "#16a34a",
-        fillColor: "#22c55e",
-        weight: 3
-      });
+    let nearest = null;
+    let minDist = Infinity;
 
-      const p = pointData.find(x => x.id === id);
-      if (p) {
-        marker.bindPopup(`
-          <b>${p.nama}</b><br>
-          Tipe: ${p.tipe}<br>
-          Status: <b>Selesai</b><br>
-          Lat: ${p.lat.toFixed(7)}<br>
-          Lng: ${p.lng.toFixed(7)}
-        `);
-      }
-    }
-  }
+    points.forEach(p => {
+      const d = map.distance([myPosition.lat, myPosition.lng], [p.lat, p.lng]);
 
-  function resetStatus() {
-    if (!confirm("Reset semua status selesai?")) return;
-
-    statusData = {};
-    localStorage.removeItem("status_gcp_icp");
-
-    pointData.forEach(p => {
-      const marker = pointMarkers[p.id];
-      if (marker) {
-        const warna = warnaTitik(p.tipe);
-        marker.setStyle({
-          color: warna,
-          fillColor: warna,
-          weight: 2
-        });
+      if (d < minDist) {
+        minDist = d;
+        nearest = p;
       }
     });
+
+    if (!nearest) return;
+
+    document.getElementById("nearest").innerText = nearest.name;
+    document.getElementById("dist").innerText = minDist.toFixed(2);
   }
+
+  function resetPointStatus() {
+    if (!confirm("Reset semua status titik selesai?")) return;
+    db.ref("pointStatus").remove();
+  }
+
+  // ==================================================
+  // 8. CHAT
+  // ==================================================
+  function sendChat() {
+    const input = document.getElementById("chatInput");
+    const text = input.value.trim();
+    const name = document.getElementById("surveyorName").value || "Unknown";
+
+    if (!text) return;
+
+    db.ref("chat").push({
+      name: name,
+      text: text,
+      time: Date.now()
+    });
+
+    input.value = "";
+  }
+
+  function listenChat() {
+    db.ref("chat").limitToLast(50).on("value", function(snapshot) {
+      const data = snapshot.val() || {};
+      const box = document.getElementById("chatBox");
+
+      box.innerHTML = Object.values(data).map(c => `
+        <div class="chat-item">
+          <b>${escapeHtml(c.name)}</b><br>
+          ${escapeHtml(c.text)}<br>
+          <small>${new Date(c.time).toLocaleTimeString()}</small>
+        </div>
+      `).join("");
+
+      box.scrollTop = box.scrollHeight;
+    });
+  }
+
+  // ==================================================
+  // 9. HELPER
+  // ==================================================
+  function getName(feature) {
+    const p = feature.properties || {};
+
+    return (
+      p.name ||
+      p.Name ||
+      p.NAMA ||
+      p.Nama ||
+      p.description ||
+      p.Description ||
+      "Tanpa Nama"
+    );
+  }
+
+  function detectType(feature, name) {
+    const props = JSON.stringify(feature.properties || {}).toUpperCase();
+    const n = String(name || "").toUpperCase();
+    const text = props + " " + n;
+
+    const geom = feature.geometry ? feature.geometry.type : "";
+
+    if (text.includes("GCP")) return "GCP";
+    if (text.includes("ICP")) return "ICP";
+    if (text.includes("BM")) return "BM";
+
+    if (geom.includes("Polygon")) return "BATAS";
+    if (geom.includes("LineString")) return "BATAS";
+    if (geom === "Point") return "POINT";
+
+    return "DATA";
+  }
+
+  function getPointColor(type, done) {
+    if (done) return "#16a34a";
+    if (type === "GCP") return "#dc2626";
+    if (type === "ICP") return "#f59e0b";
+    if (type === "BM") return "#0f172a";
+    if (type === "POINT") return "#6366f1";
+    return "#64748b";
+  }
+
+  function makePointId(layerId, feature, latlng) {
+    const name = getName(feature);
+
+    return `${layerId}_${name}_${latlng.lat.toFixed(7)}_${latlng.lng.toFixed(7)}`
+      .replace(/[.#$[\]/\s]/g, "_");
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // ==================================================
+  // 10. CLEANUP SAAT WEB DITUTUP
+  // ==================================================
+  window.addEventListener("beforeunload", function() {
+    if (myRef) myRef.remove();
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+  });
 </script>
 
 </body>
