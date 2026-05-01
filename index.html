@@ -2,18 +2,16 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Realtime Monitoring GCP ICP</title>
+  <title>MIGCP Realtime Survey Monitoring</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
   <style>
     * {
@@ -25,7 +23,7 @@
       padding: 0;
       height: 100%;
       font-family: Arial, sans-serif;
-      background: #0f172a;
+      background: #020617;
     }
 
     #map {
@@ -39,7 +37,6 @@
       top: 14px;
       left: 14px;
       z-index: 1200;
-      width: auto;
       padding: 10px 14px;
       border: none;
       border-radius: 12px;
@@ -47,34 +44,34 @@
       color: white;
       font-weight: bold;
       cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
     }
 
     .panel {
       position: absolute;
-      top: 64px;
+      top: 62px;
       left: 14px;
       z-index: 1100;
       width: 390px;
-      max-height: calc(100vh - 82px);
+      max-height: calc(100vh - 80px);
       overflow-y: auto;
-      background: rgba(255,255,255,0.97);
-      padding: 14px;
+      background: rgba(255,255,255,.97);
       border-radius: 18px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.32);
-      transition: all 0.25s ease;
+      padding: 14px;
+      box-shadow: 0 8px 34px rgba(0,0,0,.35);
+      transition: all .25s ease;
     }
 
     .panel.hidden {
-      transform: translateX(-430px);
+      transform: translateX(-440px);
       opacity: 0;
       pointer-events: none;
     }
 
-    .panel h3 {
-      margin: 0 0 12px;
-      font-size: 18px;
+    h3 {
+      margin: 0 0 10px;
       color: #0f172a;
+      font-size: 18px;
     }
 
     input, button {
@@ -89,86 +86,27 @@
     button {
       border: none;
       color: white;
+      background: #2563eb;
       font-weight: bold;
       cursor: pointer;
-      background: #2563eb;
     }
 
     button:hover {
-      opacity: 0.92;
+      opacity: .92;
     }
 
-    .btn-green {
-      background: #16a34a;
-    }
-
-    .btn-red {
-      background: #dc2626;
-    }
-
-    .btn-dark {
-      background: #334155;
-    }
+    .btn-green { background: #16a34a; }
+    .btn-red { background: #dc2626; }
+    .btn-dark { background: #334155; }
 
     .box {
       background: #f1f5f9;
-      padding: 10px;
+      color: #0f172a;
       border-radius: 12px;
+      padding: 10px;
       margin-top: 8px;
       font-size: 13px;
       line-height: 1.55;
-      color: #0f172a;
-    }
-
-    .chat-box {
-      height: 150px;
-      overflow-y: auto;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 8px;
-      font-size: 13px;
-    }
-
-    .chat-item {
-      margin-bottom: 6px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    .layer-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      margin: 6px 0;
-      background: white;
-      padding: 7px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .layer-item input {
-      width: auto;
-      margin: 0;
-    }
-
-    .surveyor-item {
-      padding: 7px;
-      border-radius: 8px;
-      margin: 5px 0;
-      background: white;
-      cursor: pointer;
-      border: 1px solid #e2e8f0;
-    }
-
-    .surveyor-item:hover {
-      background: #e0f2fe;
-    }
-
-    .small {
-      color: #475569;
-      font-size: 12px;
     }
 
     .status-ok {
@@ -181,12 +119,48 @@
       font-weight: bold;
     }
 
+    .surveyor-item, .target-item {
+      padding: 7px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+
+    .surveyor-item:hover, .target-item:hover {
+      background: #e0f2fe;
+    }
+
+    .small {
+      color: #475569;
+      font-size: 12px;
+    }
+
+    .chat-box {
+      height: 150px;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 13px;
+    }
+
+    .chat-item {
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }
+
+    .leaflet-control-layers {
+      font-size: 13px;
+    }
+
     @media (max-width: 768px) {
       #togglePanelBtn {
         top: 10px;
         left: 10px;
-        padding: 9px 13px;
-        border-radius: 10px;
       }
 
       .panel {
@@ -196,7 +170,6 @@
         top: auto;
         width: auto;
         max-height: 55vh;
-        border-radius: 18px;
       }
 
       .panel.hidden {
@@ -208,17 +181,6 @@
       .chat-box {
         height: 120px;
       }
-
-      input, button {
-        font-size: 13px;
-        padding: 9px;
-      }
-    }
-
-    @media (min-width: 769px) and (max-width: 1100px) {
-      .panel {
-        width: 340px;
-      }
     }
   </style>
 </head>
@@ -228,22 +190,19 @@
 <button id="togglePanelBtn" onclick="togglePanel()">☰ Menu</button>
 
 <div class="panel" id="controlPanel">
-  <h3>Realtime GCP / ICP Monitoring</h3>
+  <h3>MIGCP Realtime Monitoring</h3>
 
   <input type="text" id="surveyorName" placeholder="Nama surveyor, contoh: Surveyor 1" />
   <button onclick="startSurveyor()">Aktifkan GPS Saya</button>
-
-  <input type="file" id="fileInput" accept=".kml,.kmz" multiple />
-  <button class="btn-dark" onclick="uploadFiles()">Upload KML / KMZ ke Sistem</button>
-
   <button class="btn-green" onclick="markNearestDone()">Tandai Titik Terdekat Selesai</button>
-  <button class="btn-red" onclick="resetPointStatus()">Reset Semua Status Titik</button>
+  <button class="btn-red" onclick="resetPointStatus()">Reset Status Titik</button>
 
   <div class="box">
     <b>Status Sistem</b><br>
     Firebase: <span id="firebaseStatus" class="status-warn">menunggu...</span><br>
     GPS: <span id="gpsStatus" class="status-warn">belum aktif</span><br>
-    Layer: <span id="layerStatus">0</span>
+    KML: <span id="kmlStatus" class="status-warn">belum terbaca</span><br>
+    Titik Target: <span id="targetCount">0</span>
   </div>
 
   <div class="box">
@@ -252,18 +211,18 @@
     Lat: <span id="lat">-</span><br>
     Lng: <span id="lng">-</span><br>
     Akurasi: <span id="acc">-</span> m<br>
-    Terdekat: <span id="nearest">-</span><br>
+    Target terdekat: <span id="nearest">-</span><br>
     Jarak: <span id="dist">-</span> m
   </div>
 
   <div class="box">
-    <b>Surveyor Aktif</b>
+    <b>Surveyor Online</b>
     <div id="activeSurveyors">-</div>
   </div>
 
   <div class="box">
-    <b>Layer Data</b>
-    <div id="layerList">Belum ada layer</div>
+    <b>Daftar Target GCP / ICP / BM</b>
+    <div id="targetList">Belum ada titik</div>
   </div>
 
   <div class="box">
@@ -278,7 +237,7 @@
     🔴 GCP<br>
     🟠 ICP<br>
     ⚫ BM<br>
-    🟢 Selesai<br>
+    🟢 Titik selesai<br>
     🟣 Batas / polygon
   </div>
 </div>
@@ -287,10 +246,13 @@
 
 <script>
   // ==================================================
-  // 1. FIREBASE CONFIG
+  // 1. KONFIGURASI DATA
   // ==================================================
+
+  const KML_URL = "https://raw.githubusercontent.com/ketuttomysuhari/MIGCP/main/lamatokan.kml";
+
   const firebaseConfig = {
-    apiKey: "AIzaSyDYecpHx6lfG6_jaYmL-GG5aiZ_0FyhHAM",
+    apiKey: "GANTI_DENGAN_API_KEY_BARU_ANDA",
     authDomain: "callskb.firebaseapp.com",
     databaseURL: "https://callskb.firebaseio.com",
     projectId: "callskb",
@@ -300,44 +262,48 @@
   };
 
   firebase.initializeApp(firebaseConfig);
-
   const db = firebase.database();
-  const storage = firebase.storage();
 
   // ==================================================
-  // 2. GLOBAL VARIABLE
+  // 2. VARIABEL GLOBAL
   // ==================================================
+
   let map;
   let baseLayers = {};
-  let layerGroups = {};
+  let overlayControl;
+
+  let boundaryLayer = L.featureGroup();
+  let targetLayer = L.featureGroup();
+  let surveyorLayer = L.featureGroup();
+
   let pointData = {};
   let pointMarkers = {};
+
   let surveyorMarkers = {};
   let surveyorAccuracies = {};
 
   let mySurveyorMarker = null;
   let mySurveyorAccuracy = null;
-
-  let selectedFiles = [];
   let myPosition = null;
   let myRef = null;
   let watchId = null;
 
   const RADIUS_SELESAI = 25;
 
-  let myId = localStorage.getItem("my_surveyor_id");
+  let myId = localStorage.getItem("migcp_surveyor_id");
   if (!myId) {
-    myId = "surveyor_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
-    localStorage.setItem("my_surveyor_id", myId);
+    myId = "surveyor_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
+    localStorage.setItem("migcp_surveyor_id", myId);
   }
 
   // ==================================================
   // 3. INIT
   // ==================================================
+
   initMap();
-  testFirebase();
+  initFirebaseStatus();
+  loadKMLFromGitHub();
   listenSurveyors();
-  listenLayers();
   listenPointStatus();
   listenChat();
 
@@ -346,9 +312,7 @@
       zoomControl: false
     }).setView([-8.3, 123.1], 15);
 
-    L.control.zoom({
-      position: "bottomright"
-    }).addTo(map);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
     baseLayers.osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 22,
@@ -363,15 +327,32 @@
       }
     );
 
-    L.control.layers({
-      "OpenStreetMap": baseLayers.osm,
-      "Satelit Esri": baseLayers.satellite
-    }, {}, {
-      position: "topright"
-    }).addTo(map);
+    targetLayer.addTo(map);
+    boundaryLayer.addTo(map);
+    surveyorLayer.addTo(map);
+
+    overlayControl = L.control.layers(
+      {
+        "OpenStreetMap": baseLayers.osm,
+        "Satelit Esri": baseLayers.satellite
+      },
+      {
+        "Target GCP/ICP/BM": targetLayer,
+        "Batas Area": boundaryLayer,
+        "Surveyor Online": surveyorLayer
+      },
+      {
+        position: "topright",
+        collapsed: true
+      }
+    ).addTo(map);
   }
 
-  function testFirebase() {
+  function togglePanel() {
+    document.getElementById("controlPanel").classList.toggle("hidden");
+  }
+
+  function initFirebaseStatus() {
     db.ref(".info/connected").on("value", function(snapshot) {
       const connected = snapshot.val() === true;
       const el = document.getElementById("firebaseStatus");
@@ -386,65 +367,177 @@
     });
   }
 
-  function togglePanel() {
-    const panel = document.getElementById("controlPanel");
-    panel.classList.toggle("hidden");
+  // ==================================================
+  // 4. LOAD KML DARI GITHUB
+  // ==================================================
+
+  async function loadKMLFromGitHub() {
+    try {
+      const res = await fetch(KML_URL + "?t=" + Date.now());
+
+      if (!res.ok) {
+        throw new Error("HTTP " + res.status);
+      }
+
+      const text = await res.text();
+
+      const parser = new DOMParser();
+      const kml = parser.parseFromString(text, "text/xml");
+
+      const parserError = kml.querySelector("parsererror");
+      if (parserError) {
+        throw new Error("KML tidak valid");
+      }
+
+      const geojson = toGeoJSON.kml(kml);
+
+      targetLayer.clearLayers();
+      boundaryLayer.clearLayers();
+      pointData = {};
+      pointMarkers = {};
+
+      const targetGeoJson = L.geoJSON(geojson, {
+        pointToLayer: function(feature, latlng) {
+          const name = getName(feature);
+          const type = detectType(feature, name);
+          const pointId = makePointId(feature, latlng);
+
+          const color = getPointColor(type, false);
+
+          const marker = L.circleMarker(latlng, {
+            radius: type === "GCP" || type === "ICP" || type === "BM" ? 10 : 7,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.95,
+            weight: 2
+          });
+
+          pointData[pointId] = {
+            id: pointId,
+            name,
+            type,
+            lat: latlng.lat,
+            lng: latlng.lng
+          };
+
+          pointMarkers[pointId] = marker;
+
+          marker.bindTooltip(name, {
+            sticky: true,
+            direction: "top"
+          });
+
+          marker.bindPopup(`
+            <b>${escapeHtml(name)}</b><br>
+            Tipe: ${type}<br>
+            Status: <b>Belum selesai</b><br>
+            Lat: ${latlng.lat.toFixed(7)}<br>
+            Lng: ${latlng.lng.toFixed(7)}<br><br>
+            <button onclick="markPointDone('${pointId}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
+              Tandai Selesai
+            </button>
+          `);
+
+          return marker;
+        },
+
+        filter: function(feature) {
+          return feature.geometry && feature.geometry.type === "Point";
+        }
+      });
+
+      const boundaryGeoJson = L.geoJSON(geojson, {
+        filter: function(feature) {
+          if (!feature.geometry) return false;
+          return feature.geometry.type.includes("Polygon") || feature.geometry.type.includes("LineString");
+        },
+
+        style: function(feature) {
+          const geom = feature.geometry.type;
+
+          if (geom.includes("Polygon")) {
+            return {
+              color: "#7c3aed",
+              weight: 3,
+              opacity: 0.95,
+              fillColor: "#a78bfa",
+              fillOpacity: 0.12,
+              dashArray: "8,6"
+            };
+          }
+
+          return {
+            color: "#7c3aed",
+            weight: 3,
+            opacity: 0.95,
+            dashArray: "8,6"
+          };
+        },
+
+        onEachFeature: function(feature, layer) {
+          const name = getName(feature);
+          const geom = feature.geometry ? feature.geometry.type : "-";
+
+          layer.bindTooltip(name || "Batas", { sticky: true });
+
+          layer.bindPopup(`
+            <b>${escapeHtml(name || "Batas")}</b><br>
+            Geometri: ${geom}
+          `);
+        }
+      });
+
+      targetGeoJson.addTo(targetLayer);
+      boundaryGeoJson.addTo(boundaryLayer);
+
+      document.getElementById("kmlStatus").innerText = "terbaca";
+      document.getElementById("kmlStatus").className = "status-ok";
+      document.getElementById("targetCount").innerText = Object.keys(pointData).length;
+
+      renderTargetList();
+
+      const allLayers = L.featureGroup([targetLayer, boundaryLayer]);
+      if (allLayers.getLayers().length > 0 && allLayers.getBounds().isValid()) {
+        map.fitBounds(allLayers.getBounds(), { padding: [30, 30] });
+      }
+
+    } catch (err) {
+      console.error("Gagal load KML:", err);
+      document.getElementById("kmlStatus").innerText = "gagal";
+      document.getElementById("kmlStatus").className = "status-warn";
+      alert("KML gagal dibaca. Pastikan URL RAW GitHub benar dan file lamatokan.kml ada di repo.");
+    }
   }
 
-  // ==================================================
-  // 4. FILE UPLOAD KML / KMZ
-  // ==================================================
-  document.getElementById("fileInput").addEventListener("change", function(e) {
-    selectedFiles = Array.from(e.target.files);
-  });
+  function renderTargetList() {
+    const container = document.getElementById("targetList");
+    const points = Object.values(pointData);
 
-  async function uploadFiles() {
-    if (!selectedFiles.length) {
-      alert("Pilih file KML/KMZ dulu.");
+    if (!points.length) {
+      container.innerHTML = "Belum ada titik target";
       return;
     }
 
-    try {
-      for (const file of selectedFiles) {
-        const ext = file.name.toLowerCase().split(".").pop();
+    container.innerHTML = points.map(p => `
+      <div class="target-item" onclick="focusTarget('${p.id}')">
+        ${iconByType(p.type)} <b>${escapeHtml(p.name)}</b><br>
+        <span class="small">${p.type} | ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</span>
+      </div>
+    `).join("");
+  }
 
-        if (ext !== "kml" && ext !== "kmz") {
-          alert("File harus .kml atau .kmz: " + file.name);
-          continue;
-        }
+  function focusTarget(id) {
+    const marker = pointMarkers[id];
+    if (!marker) return;
 
-        const fileId = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
-        const cleanName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
-        const storagePath = "kml_kmz/" + fileId + "_" + cleanName;
-
-        const ref = storage.ref(storagePath);
-
-        await ref.put(file);
-
-        const url = await ref.getDownloadURL();
-
-        await db.ref("layers/" + fileId).set({
-          id: fileId,
-          name: file.name,
-          url: url,
-          storagePath: storagePath,
-          createdAt: Date.now(),
-          uploadedBy: document.getElementById("surveyorName").value || "Unknown"
-        });
-      }
-
-      alert("Upload berhasil. Layer akan tampil untuk semua pengguna.");
-      document.getElementById("fileInput").value = "";
-      selectedFiles = [];
-    } catch (err) {
-      console.error(err);
-      alert("Upload gagal. Cek Firebase Storage Rules dan firebaseConfig.");
-    }
+    map.setView(marker.getLatLng(), 20);
+    marker.openPopup();
   }
 
   // ==================================================
-  // 5. GPS MULTIPLAYER SURVEYOR
+  // 5. GPS SURVEYOR MULTIPLAYER
   // ==================================================
+
   function startSurveyor() {
     const name = document.getElementById("surveyorName").value.trim();
 
@@ -464,6 +557,7 @@
     }
 
     document.getElementById("gpsStatus").innerText = "meminta izin lokasi...";
+    document.getElementById("gpsStatus").className = "status-warn";
 
     watchId = navigator.geolocation.watchPosition(
       function(pos) {
@@ -483,9 +577,9 @@
 
         myRef.set({
           id: myId,
-          name: name,
-          lat: lat,
-          lng: lng,
+          name,
+          lat,
+          lng,
           accuracy: acc,
           lastUpdate: Date.now()
         });
@@ -520,20 +614,7 @@
         fillColor: "#2563eb",
         fillOpacity: 1,
         weight: 4
-      }).addTo(map);
-
-      mySurveyorMarker.bindTooltip("Saya: " + name, {
-        permanent: true,
-        direction: "top"
-      });
-
-      mySurveyorMarker.bindPopup(`
-        <b>Posisi Saya</b><br>
-        Nama: ${escapeHtml(name)}<br>
-        Lat: ${lat.toFixed(7)}<br>
-        Lng: ${lng.toFixed(7)}<br>
-        Akurasi: ${acc.toFixed(1)} m
-      `);
+      }).addTo(surveyorLayer);
 
       mySurveyorAccuracy = L.circle(pos, {
         radius: acc,
@@ -541,20 +622,25 @@
         fillColor: "#60a5fa",
         fillOpacity: 0.15,
         weight: 1
-      }).addTo(map);
+      }).addTo(surveyorLayer);
+
+      mySurveyorMarker.bindTooltip("Saya: " + name, {
+        permanent: true,
+        direction: "top"
+      });
     } else {
       mySurveyorMarker.setLatLng(pos);
       mySurveyorAccuracy.setLatLng(pos);
       mySurveyorAccuracy.setRadius(acc);
-
-      mySurveyorMarker.bindPopup(`
-        <b>Posisi Saya</b><br>
-        Nama: ${escapeHtml(name)}<br>
-        Lat: ${lat.toFixed(7)}<br>
-        Lng: ${lng.toFixed(7)}<br>
-        Akurasi: ${acc.toFixed(1)} m
-      `);
     }
+
+    mySurveyorMarker.bindPopup(`
+      <b>Posisi Saya</b><br>
+      Nama: ${escapeHtml(name)}<br>
+      Lat: ${lat.toFixed(7)}<br>
+      Lng: ${lng.toFixed(7)}<br>
+      Akurasi: ${acc.toFixed(1)} m
+    `);
   }
 
   function listenSurveyors() {
@@ -564,8 +650,8 @@
 
       Object.keys(surveyorMarkers).forEach(id => {
         if (!data[id]) {
-          map.removeLayer(surveyorMarkers[id]);
-          map.removeLayer(surveyorAccuracies[id]);
+          surveyorLayer.removeLayer(surveyorMarkers[id]);
+          surveyorLayer.removeLayer(surveyorAccuracies[id]);
           delete surveyorMarkers[id];
           delete surveyorAccuracies[id];
         }
@@ -593,7 +679,7 @@
             fillColor: "#2563eb",
             fillOpacity: 1,
             weight: 3
-          }).addTo(map);
+          }).addTo(surveyorLayer);
 
           surveyorAccuracies[id] = L.circle(pos, {
             radius: s.accuracy || 5,
@@ -601,7 +687,7 @@
             fillColor: "#60a5fa",
             fillOpacity: 0.12,
             weight: 1
-          }).addTo(map);
+          }).addTo(surveyorLayer);
         } else {
           surveyorMarkers[id].setLatLng(pos);
           surveyorAccuracies[id].setLatLng(pos);
@@ -634,220 +720,16 @@
     }
 
     const marker = surveyorMarkers[id];
+    if (!marker) return;
 
-    if (marker) {
-      map.setView(marker.getLatLng(), 20);
-      marker.openPopup();
-    }
+    map.setView(marker.getLatLng(), 20);
+    marker.openPopup();
   }
 
   // ==================================================
-  // 6. LOAD LAYER DARI FIREBASE
+  // 6. STATUS TITIK
   // ==================================================
-  function listenLayers() {
-    db.ref("layers").on("value", async function(snapshot) {
-      const layers = snapshot.val() || {};
-      const ids = Object.keys(layers);
 
-      document.getElementById("layerStatus").innerText = ids.length;
-
-      for (const id of ids) {
-        if (!layerGroups[id]) {
-          await loadLayerFromUrl(layers[id]);
-        }
-      }
-
-      Object.keys(layerGroups).forEach(id => {
-        if (!layers[id]) {
-          map.removeLayer(layerGroups[id]);
-          delete layerGroups[id];
-        }
-      });
-
-      renderLayerList(layers);
-    });
-  }
-
-  async function loadLayerFromUrl(layerInfo) {
-    try {
-      const response = await fetch(layerInfo.url);
-      const blob = await response.blob();
-
-      let kmlTexts = [];
-
-      if (layerInfo.name.toLowerCase().endsWith(".kmz")) {
-        const zip = await JSZip.loadAsync(blob);
-        const paths = Object.keys(zip.files);
-
-        for (const path of paths) {
-          if (path.toLowerCase().endsWith(".kml")) {
-            const text = await zip.files[path].async("text");
-            kmlTexts.push(text);
-          }
-        }
-      } else {
-        kmlTexts.push(await blob.text());
-      }
-
-      const group = L.featureGroup();
-
-      kmlTexts.forEach(kmlText => {
-        const parser = new DOMParser();
-        const kml = parser.parseFromString(kmlText, "text/xml");
-        const geojson = toGeoJSON.kml(kml);
-
-        const layer = createGeoJsonLayer(geojson, layerInfo);
-        layer.addTo(group);
-      });
-
-      group.addTo(map);
-      layerGroups[layerInfo.id] = group;
-
-      if (group.getLayers().length > 0 && !window.hasFitInitialLayer) {
-        map.fitBounds(group.getBounds(), { padding: [30, 30] });
-        window.hasFitInitialLayer = true;
-      }
-    } catch (err) {
-      console.error("Gagal load layer:", layerInfo.name, err);
-      alert("Gagal membaca layer: " + layerInfo.name);
-    }
-  }
-
-  function createGeoJsonLayer(geojson, layerInfo) {
-    return L.geoJSON(geojson, {
-      pointToLayer: function(feature, latlng) {
-        const name = getName(feature);
-        const type = detectType(feature, name);
-        const pointId = makePointId(layerInfo.id, feature, latlng);
-
-        const color = getPointColor(type, false);
-
-        const marker = L.circleMarker(latlng, {
-          radius: type === "GCP" || type === "ICP" || type === "BM" ? 9 : 7,
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.95,
-          weight: 2
-        });
-
-        pointData[pointId] = {
-          id: pointId,
-          layerId: layerInfo.id,
-          name: name,
-          type: type,
-          lat: latlng.lat,
-          lng: latlng.lng
-        };
-
-        pointMarkers[pointId] = marker;
-
-        marker.bindTooltip(name, {
-          sticky: true,
-          direction: "top"
-        });
-
-        marker.bindPopup(`
-          <b>${escapeHtml(name)}</b><br>
-          Tipe: ${type}<br>
-          Layer: ${escapeHtml(layerInfo.name)}<br>
-          Status: <b>Belum selesai</b><br>
-          Lat: ${latlng.lat.toFixed(7)}<br>
-          Lng: ${latlng.lng.toFixed(7)}<br><br>
-          <button onclick="markPointDone('${pointId}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
-            Tandai Selesai
-          </button>
-        `);
-
-        return marker;
-      },
-
-      style: function(feature) {
-        const geom = feature.geometry ? feature.geometry.type : "";
-
-        if (geom.includes("Polygon")) {
-          return {
-            color: "#7c3aed",
-            weight: 3,
-            opacity: 0.95,
-            fillColor: "#a78bfa",
-            fillOpacity: 0.12,
-            dashArray: "8,6"
-          };
-        }
-
-        if (geom.includes("LineString")) {
-          return {
-            color: "#7c3aed",
-            weight: 3,
-            opacity: 0.95,
-            dashArray: "8,6"
-          };
-        }
-
-        return {
-          color: "#64748b",
-          weight: 2
-        };
-      },
-
-      onEachFeature: function(feature, layer) {
-        const geom = feature.geometry ? feature.geometry.type : "";
-        const name = getName(feature);
-        const type = detectType(feature, name);
-
-        if (geom !== "Point") {
-          layer.bindTooltip(name || "Batas", { sticky: true });
-
-          layer.bindPopup(`
-            <b>${escapeHtml(name || "Batas")}</b><br>
-            Tipe: ${type}<br>
-            Geometri: ${geom}<br>
-            Layer: ${escapeHtml(layerInfo.name)}
-          `);
-        }
-      }
-    });
-  }
-
-  function renderLayerList(layers) {
-    const container = document.getElementById("layerList");
-    const ids = Object.keys(layers || {});
-
-    if (!ids.length) {
-      container.innerHTML = "Belum ada layer";
-      return;
-    }
-
-    container.innerHTML = ids.map(id => {
-      const checked = layerGroups[id] && map.hasLayer(layerGroups[id]) ? "checked" : "";
-      const name = layers[id].name || id;
-
-      return `
-        <label class="layer-item">
-          <input type="checkbox" ${checked} onchange="toggleLayer('${id}', this.checked)" />
-          <span>${escapeHtml(name)}</span>
-        </label>
-      `;
-    }).join("");
-  }
-
-  function toggleLayer(id, show) {
-    const layer = layerGroups[id];
-    if (!layer) return;
-
-    if (show) {
-      layer.addTo(map);
-      if (layer.getLayers().length > 0) {
-        map.fitBounds(layer.getBounds(), { padding: [30, 30] });
-      }
-    } else {
-      map.removeLayer(layer);
-    }
-  }
-
-  // ==================================================
-  // 7. STATUS TITIK GCP / ICP / BM
-  // ==================================================
   function listenPointStatus() {
     db.ref("pointStatus").on("value", function(snapshot) {
       const statuses = snapshot.val() || {};
@@ -860,7 +742,7 @@
         const color = getPointColor(p.type, done);
 
         pointMarkers[id].setStyle({
-          color: color,
+          color,
           fillColor: color,
           weight: done ? 4 : 2
         });
@@ -869,6 +751,7 @@
           <b>${escapeHtml(p.name)}</b><br>
           Tipe: ${p.type}<br>
           Status: <b>${done ? "Selesai" : "Belum selesai"}</b><br>
+          ${done ? "Oleh: " + escapeHtml(statuses[id].by || "-") + "<br>" : ""}
           Lat: ${p.lat.toFixed(7)}<br>
           Lng: ${p.lng.toFixed(7)}<br><br>
           <button onclick="markPointDone('${id}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
@@ -889,6 +772,11 @@
     });
   }
 
+  function resetPointStatus() {
+    if (!confirm("Reset semua status titik selesai?")) return;
+    db.ref("pointStatus").remove();
+  }
+
   function markNearestDone() {
     if (!myPosition) {
       alert("Aktifkan GPS dulu.");
@@ -896,9 +784,8 @@
     }
 
     const points = Object.values(pointData);
-
     if (!points.length) {
-      alert("Belum ada titik GCP/ICP/BM dari KML/KMZ.");
+      alert("Belum ada titik GCP/ICP/BM.");
       return;
     }
 
@@ -907,7 +794,6 @@
 
     points.forEach(p => {
       const d = map.distance([myPosition.lat, myPosition.lng], [p.lat, p.lng]);
-
       if (d < minDist) {
         minDist = d;
         nearest = p;
@@ -928,7 +814,6 @@
     if (!myPosition) return;
 
     const points = Object.values(pointData);
-
     if (!points.length) return;
 
     let nearest = null;
@@ -936,7 +821,6 @@
 
     points.forEach(p => {
       const d = map.distance([myPosition.lat, myPosition.lng], [p.lat, p.lng]);
-
       if (d < minDist) {
         minDist = d;
         nearest = p;
@@ -949,14 +833,10 @@
     document.getElementById("dist").innerText = minDist.toFixed(2);
   }
 
-  function resetPointStatus() {
-    if (!confirm("Reset semua status titik selesai?")) return;
-    db.ref("pointStatus").remove();
-  }
+  // ==================================================
+  // 7. CHAT
+  // ==================================================
 
-  // ==================================================
-  // 8. CHAT
-  // ==================================================
   function sendChat() {
     const input = document.getElementById("chatInput");
     const text = input.value.trim();
@@ -965,8 +845,8 @@
     if (!text) return;
 
     db.ref("chat").push({
-      name: name,
-      text: text,
+      name,
+      text,
       time: Date.now()
     });
 
@@ -982,7 +862,7 @@
         <div class="chat-item">
           <b>${escapeHtml(c.name)}</b><br>
           ${escapeHtml(c.text)}<br>
-          <small>${new Date(c.time).toLocaleTimeString()}</small>
+          <span class="small">${new Date(c.time).toLocaleTimeString()}</span>
         </div>
       `).join("");
 
@@ -991,11 +871,11 @@
   }
 
   // ==================================================
-  // 9. HELPER
+  // 8. HELPER
   // ==================================================
+
   function getName(feature) {
     const p = feature.properties || {};
-
     return (
       p.name ||
       p.Name ||
@@ -1011,7 +891,6 @@
     const props = JSON.stringify(feature.properties || {}).toUpperCase();
     const n = String(name || "").toUpperCase();
     const text = props + " " + n;
-
     const geom = feature.geometry ? feature.geometry.type : "";
 
     if (text.includes("GCP")) return "GCP";
@@ -1030,15 +909,20 @@
     if (type === "GCP") return "#dc2626";
     if (type === "ICP") return "#f59e0b";
     if (type === "BM") return "#0f172a";
-    if (type === "POINT") return "#6366f1";
-    return "#64748b";
+    return "#6366f1";
   }
 
-  function makePointId(layerId, feature, latlng) {
+  function makePointId(feature, latlng) {
     const name = getName(feature);
-
-    return `${layerId}_${name}_${latlng.lat.toFixed(7)}_${latlng.lng.toFixed(7)}`
+    return `${name}_${latlng.lat.toFixed(7)}_${latlng.lng.toFixed(7)}`
       .replace(/[.#$[\]/\s]/g, "_");
+  }
+
+  function iconByType(type) {
+    if (type === "GCP") return "🔴";
+    if (type === "ICP") return "🟠";
+    if (type === "BM") return "⚫";
+    return "🔵";
   }
 
   function escapeHtml(str) {
@@ -1050,9 +934,6 @@
       .replaceAll("'", "&#039;");
   }
 
-  // ==================================================
-  // 10. CLEANUP SAAT WEB DITUTUP
-  // ==================================================
   window.addEventListener("beforeunload", function() {
     if (myRef) myRef.remove();
     if (watchId) navigator.geolocation.clearWatch(watchId);
