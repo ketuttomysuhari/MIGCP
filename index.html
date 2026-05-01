@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Realtime GCP/ICP Monitoring</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">G</div>
+        <div>
+          <h1>GCP/ICP Monitor</h1>
+          <p>Realtime surveyor & titik kontrol</p>
+        </div>
+      </div>
+
+      <section class="card">
+        <h2>Identitas Surveyor</h2>
+        <input id="surveyorName" type="text" placeholder="Contoh: Surveyor 01" />
+        <button id="btnStart" class="btn primary">Aktifkan Monitoring</button>
+        <p class="hint">Setiap pengguna yang membuka dan mengaktifkan web akan muncul sebagai surveyor aktif. Jika web ditutup, marker akan hilang.</p>
+      </section>
+
+      <section class="card">
+        <h2>Data KML</h2>
+        <input id="kmlInput" type="file" accept=".kml,.kmz" multiple />
+        <button id="btnExportGeoJSON" class="btn secondary">Download GeoJSON</button>
+        <p class="hint">Upload satu atau beberapa KML/KMZ berisi titik GCP/ICP dan batas area. Data akan dikonversi menjadi GeoJSON dan status titik bisa ditandai selesai.</p>
+      </section>
+
+      <section class="card grid2">
+        <div>
+          <span class="label">Surveyor Aktif</span>
+          <strong id="activeSurveyorCount">0</strong>
+        </div>
+        <div>
+          <span class="label">Titik Selesai</span>
+          <strong id="donePointCount">0/0</strong>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Posisi Saya</h2>
+        <div class="mini-table">
+          <div><span>Latitude</span><b id="myLat">-</b></div>
+          <div><span>Longitude</span><b id="myLng">-</b></div>
+          <div><span>Akurasi</span><b id="myAccuracy">-</b></div>
+          <div><span>Titik Terdekat</span><b id="nearestPoint">-</b></div>
+          <div><span>Jarak</span><b id="nearestDistance">-</b></div>
+        </div>
+        <button id="btnFinishNearest" class="btn success">Tandai Titik Terdekat Selesai</button>
+        <button id="btnResetPoints" class="btn danger">Reset Status Titik</button>
+      </section>
+
+      <section class="card">
+        <h2>Daftar Titik GCP/ICP</h2>
+        <div id="pointList" class="point-list empty">Belum ada KML yang dimuat.</div>
+      </section>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+      <div class="legend">
+        <div><i class="dot blue"></i> Surveyor aktif</div>
+        <div><i class="dot gcp"></i> GCP belum selesai</div>
+        <div><i class="dot icp"></i> ICP belum selesai</div>
+        <div><i class="dot green"></i> Titik selesai</div>
+        <div><i class="line-sample"></i> Batas area</div>
+        <div><i class="dot orange"></i> Titik terdekat</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
