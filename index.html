@@ -2,88 +2,511 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <title>Monitoring GCP/ICP + KML/KMZ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Realtime GCP/ICP Monitoring</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <style>
+    body { margin:0; font-family:Arial, sans-serif; }
+    #map { width:100%; height:100vh; }
+
+    .panel {
+      position:absolute;
+      top:14px;
+      left:14px;
+      z-index:999;
+      width:330px;
+      background:white;
+      padding:14px;
+      border-radius:14px;
+      box-shadow:0 4px 20px rgba(0,0,0,.25);
+    }
+
+    .panel h3 { margin:0 0 10px; }
+    .panel input, .panel button {
+      width:100%;
+      padding:10px;
+      margin:5px 0;
+      border-radius:8px;
+      border:1px solid #ccc;
+    }
+
+    .panel button {
+      border:0;
+      color:white;
+      font-weight:bold;
+      cursor:pointer;
+      background:#2563eb;
+    }
+
+    .btn-green { background:#16a34a !important; }
+    .btn-red { background:#dc2626 !important; }
+
+    .info {
+      margin-top:8px;
+      padding:8px;
+      border-radius:8px;
+      background:#f1f5f9;
+      font-size:13px;
+      line-height:1.5;
+    }
+
+    .legend {
+      margin-top:8px;
+      font-size:13px;
+      line-height:1.6;
+    }
+  </style>
 </head>
+
 <body>
-  <div id="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="logo">G</div>
-        <div>
-          <h1>GCP/ICP Monitor</h1>
-          <p>Realtime surveyor & titik kontrol</p>
-        </div>
-      </div>
 
-      <section class="card">
-        <h2>Identitas Surveyor</h2>
-        <input id="surveyorName" type="text" placeholder="Contoh: Surveyor 01" />
-        <button id="btnStart" class="btn primary">Aktifkan Monitoring</button>
-        <p class="hint">Setiap pengguna yang membuka dan mengaktifkan web akan muncul sebagai surveyor aktif. Jika web ditutup, marker akan hilang.</p>
-      </section>
+<div class="panel">
+  <h3>Monitoring GCP / ICP</h3>
 
-      <section class="card">
-        <h2>Data KML</h2>
-        <input id="kmlInput" type="file" accept=".kml,.kmz" multiple />
-        <button id="btnExportGeoJSON" class="btn secondary">Download GeoJSON</button>
-        <p class="hint">Upload satu atau beberapa KML/KMZ berisi titik GCP/ICP dan batas area. Data akan dikonversi menjadi GeoJSON dan status titik bisa ditandai selesai.</p>
-      </section>
+  <input type="file" id="fileInput" accept=".kml,.kmz" multiple />
 
-      <section class="card grid2">
-        <div>
-          <span class="label">Surveyor Aktif</span>
-          <strong id="activeSurveyorCount">0</strong>
-        </div>
-        <div>
-          <span class="label">Titik Selesai</span>
-          <strong id="donePointCount">0/0</strong>
-        </div>
-      </section>
+  <button onclick="aktifkanGPS()">Aktifkan GPS Surveyor</button>
+  <button class="btn-green" onclick="tandaiTerdekatSelesai()">Tandai Titik Terdekat Selesai</button>
+  <button class="btn-red" onclick="resetStatus()">Reset Status</button>
 
-      <section class="card">
-        <h2>Posisi Saya</h2>
-        <div class="mini-table">
-          <div><span>Latitude</span><b id="myLat">-</b></div>
-          <div><span>Longitude</span><b id="myLng">-</b></div>
-          <div><span>Akurasi</span><b id="myAccuracy">-</b></div>
-          <div><span>Titik Terdekat</span><b id="nearestPoint">-</b></div>
-          <div><span>Jarak</span><b id="nearestDistance">-</b></div>
-        </div>
-        <button id="btnFinishNearest" class="btn success">Tandai Titik Terdekat Selesai</button>
-        <button id="btnResetPoints" class="btn danger">Reset Status Titik</button>
-      </section>
-
-      <section class="card">
-        <h2>Daftar Titik GCP/ICP</h2>
-        <div id="pointList" class="point-list empty">Belum ada KML yang dimuat.</div>
-      </section>
-    </aside>
-
-    <main class="map-wrap">
-      <div id="map"></div>
-      <div class="legend">
-        <div><i class="dot blue"></i> Surveyor aktif</div>
-        <div><i class="dot gcp"></i> GCP belum selesai</div>
-        <div><i class="dot icp"></i> ICP belum selesai</div>
-        <div><i class="dot green"></i> Titik selesai</div>
-        <div><i class="line-sample"></i> Batas area</div>
-        <div><i class="dot orange"></i> Titik terdekat</div>
-      </div>
-    </main>
+  <div class="info">
+    <b>GPS Surveyor</b><br>
+    Lat: <span id="lat">-</span><br>
+    Lng: <span id="lng">-</span><br>
+    Akurasi: <span id="acc">-</span> m<br>
+    Titik terdekat: <span id="nearest">-</span><br>
+    Jarak: <span id="dist">-</span> m
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <div class="legend">
+    🔵 Surveyor aktif<br>
+    🔴 GCP<br>
+    🟠 ICP<br>
+    🟢 Selesai<br>
+    🟣 Batas / polygon / area
+  </div>
+</div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<div id="map"></div>
 
-  <script src="firebase-config.js"></script>
-  <script src="app.js"></script>
+<script>
+  let map;
+  let dataLayer = L.featureGroup();
+  let surveyorMarker = null;
+  let surveyorAccuracy = null;
+  let surveyorPosition = null;
+
+  let pointData = [];
+  let pointMarkers = {};
+  let statusData = JSON.parse(localStorage.getItem("status_gcp_icp")) || {};
+
+  const RADIUS_SELESAI = 25;
+
+  initMap();
+
+  function initMap() {
+    map = L.map("map").setView([-8.3, 123.1], 15);
+
+    const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 22,
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
+
+    const satelit = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 22,
+        attribution: "Tiles © Esri"
+      }
+    );
+
+    L.control.layers({
+      "OpenStreetMap": osm,
+      "Satelit Esri": satelit
+    }).addTo(map);
+
+    dataLayer.addTo(map);
+  }
+
+  document.getElementById("fileInput").addEventListener("change", async function(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    for (const file of files) {
+      const ext = file.name.toLowerCase().split(".").pop();
+
+      if (ext === "kml") {
+        const kmlText = await file.text();
+        tampilkanKML(kmlText, file.name);
+      }
+
+      if (ext === "kmz") {
+        const kmlTexts = await bacaKMZ(file);
+        kmlTexts.forEach((item, index) => {
+          tampilkanKML(item.text, file.name + " / " + item.name);
+        });
+      }
+    }
+
+    if (dataLayer.getLayers().length > 0) {
+      map.fitBounds(dataLayer.getBounds(), { padding: [30, 30] });
+    }
+  });
+
+  async function bacaKMZ(file) {
+    const zip = await JSZip.loadAsync(file);
+    const hasil = [];
+
+    const entries = Object.keys(zip.files);
+
+    for (const path of entries) {
+      if (path.toLowerCase().endsWith(".kml")) {
+        const text = await zip.files[path].async("text");
+        hasil.push({ name: path, text });
+      }
+    }
+
+    if (hasil.length === 0) {
+      alert("KMZ tidak berisi file KML: " + file.name);
+    }
+
+    return hasil;
+  }
+
+  function tampilkanKML(kmlText, sourceName) {
+    const parser = new DOMParser();
+    const kml = parser.parseFromString(kmlText, "text/xml");
+    const geojson = toGeoJSON.kml(kml);
+
+    const layer = L.geoJSON(geojson, {
+      pointToLayer: function(feature, latlng) {
+        const nama = ambilNama(feature);
+        const tipe = deteksiTipe(nama, feature);
+        const id = buatId(feature, latlng, sourceName);
+        const selesai = statusData[id] === "selesai";
+
+        const warna = selesai ? "#16a34a" : warnaTitik(tipe);
+
+        const marker = L.circleMarker(latlng, {
+          radius: tipe === "GCP" || tipe === "ICP" ? 9 : 7,
+          color: warna,
+          fillColor: warna,
+          fillOpacity: 0.95,
+          weight: 2
+        });
+
+        pointData.push({
+          id,
+          nama,
+          tipe,
+          lat: latlng.lat,
+          lng: latlng.lng,
+          sourceName
+        });
+
+        pointMarkers[id] = marker;
+
+        marker.bindTooltip(nama, {
+          direction: "top",
+          sticky: true
+        });
+
+        marker.bindPopup(`
+          <b>${nama}</b><br>
+          File: ${sourceName}<br>
+          Tipe: ${tipe}<br>
+          Status: <b>${selesai ? "Selesai" : "Belum selesai"}</b><br>
+          Lat: ${latlng.lat.toFixed(7)}<br>
+          Lng: ${latlng.lng.toFixed(7)}<br><br>
+          <button onclick="tandaiSelesai('${id}')" style="padding:8px 10px;border:0;border-radius:8px;background:#16a34a;color:white;cursor:pointer;">
+            Tandai Selesai
+          </button>
+        `);
+
+        return marker;
+      },
+
+      style: function(feature) {
+        const tipe = feature.geometry ? feature.geometry.type : "";
+
+        if (tipe.includes("Polygon")) {
+          return {
+            color: "#7c3aed",
+            weight: 3,
+            opacity: 0.95,
+            fillColor: "#a78bfa",
+            fillOpacity: 0.15,
+            dashArray: "8,6"
+          };
+        }
+
+        if (tipe.includes("LineString")) {
+          return {
+            color: "#7c3aed",
+            weight: 3,
+            opacity: 0.95,
+            dashArray: "8,6"
+          };
+        }
+
+        return {
+          color: "#7c3aed",
+          weight: 2
+        };
+      },
+
+      onEachFeature: function(feature, layer) {
+        const nama = ambilNama(feature);
+        const tipeGeom = feature.geometry ? feature.geometry.type : "Unknown";
+        const tipe = deteksiTipe(nama, feature);
+
+        if (tipeGeom !== "Point") {
+          layer.bindTooltip(nama || "Batas Area", {
+            sticky: true
+          });
+
+          layer.bindPopup(`
+            <b>${nama || "Batas Area"}</b><br>
+            File: ${sourceName}<br>
+            Geometri: ${tipeGeom}<br>
+            Tipe: ${tipe}
+          `);
+        }
+      }
+    });
+
+    layer.addTo(dataLayer);
+  }
+
+  function ambilNama(feature) {
+    const p = feature.properties || {};
+    return (
+      p.name ||
+      p.Name ||
+      p.NAMA ||
+      p.Nama ||
+      p.description ||
+      p.Description ||
+      "Tanpa Nama"
+    );
+  }
+
+  function deteksiTipe(nama, feature) {
+    const text = JSON.stringify(feature.properties || {}).toUpperCase() + " " + String(nama).toUpperCase();
+
+    if (text.includes("GCP")) return "GCP";
+    if (text.includes("ICP")) return "ICP";
+    if (text.includes("CONTROL")) return "GCP";
+    if (text.includes("CHECK")) return "ICP";
+
+    const geom = feature.geometry ? feature.geometry.type : "";
+
+    if (geom.includes("Polygon")) return "BATAS";
+    if (geom.includes("LineString")) return "GARIS/BATAS";
+    if (geom === "Point") return "TITIK";
+
+    return "DATA";
+  }
+
+  function warnaTitik(tipe) {
+    if (tipe === "GCP") return "#dc2626";
+    if (tipe === "ICP") return "#f59e0b";
+    if (tipe === "TITIK") return "#6366f1";
+    return "#64748b";
+  }
+
+  function buatId(feature, latlng, sourceName) {
+    const nama = ambilNama(feature);
+    return `${sourceName}_${nama}_${latlng.lat}_${latlng.lng}`.replace(/\s+/g, "_");
+  }
+
+  function aktifkanGPS() {
+    if (!navigator.geolocation) {
+      alert("Browser tidak mendukung GPS.");
+      return;
+    }
+
+    navigator.geolocation.watchPosition(
+      function(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const acc = pos.coords.accuracy;
+
+        surveyorPosition = { lat, lng, acc };
+
+        document.getElementById("lat").innerText = lat.toFixed(7);
+        document.getElementById("lng").innerText = lng.toFixed(7);
+        document.getElementById("acc").innerText = acc.toFixed(1);
+
+        tampilkanSurveyor(lat, lng, acc);
+        cariTitikTerdekat();
+
+        if (!window.gpsCentered) {
+          map.setView([lat, lng], 19);
+          window.gpsCentered = true;
+        }
+      },
+      function(err) {
+        alert("GPS gagal: " + err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 10000
+      }
+    );
+  }
+
+  function tampilkanSurveyor(lat, lng, acc) {
+    const pos = [lat, lng];
+
+    if (!surveyorMarker) {
+      surveyorMarker = L.circleMarker(pos, {
+        radius: 10,
+        color: "#1d4ed8",
+        fillColor: "#2563eb",
+        fillOpacity: 1,
+        weight: 3
+      }).addTo(map);
+
+      surveyorMarker.bindTooltip("Posisi Surveyor", {
+        permanent: true,
+        direction: "top"
+      });
+
+      surveyorAccuracy = L.circle(pos, {
+        radius: acc,
+        color: "#2563eb",
+        fillColor: "#60a5fa",
+        fillOpacity: 0.15,
+        weight: 1
+      }).addTo(map);
+    } else {
+      surveyorMarker.setLatLng(pos);
+      surveyorAccuracy.setLatLng(pos);
+      surveyorAccuracy.setRadius(acc);
+    }
+  }
+
+  function cariTitikTerdekat() {
+    if (!surveyorPosition || pointData.length === 0) return;
+
+    let nearest = null;
+    let minDist = Infinity;
+
+    pointData.forEach(p => {
+      const d = map.distance(
+        [surveyorPosition.lat, surveyorPosition.lng],
+        [p.lat, p.lng]
+      );
+
+      if (d < minDist) {
+        minDist = d;
+        nearest = p;
+      }
+    });
+
+    if (!nearest) return;
+
+    document.getElementById("nearest").innerText = nearest.nama;
+    document.getElementById("dist").innerText = minDist.toFixed(2);
+
+    Object.values(pointMarkers).forEach(m => {
+      m.setStyle({ weight: 2 });
+    });
+
+    if (pointMarkers[nearest.id]) {
+      pointMarkers[nearest.id].setStyle({ weight: 5 });
+    }
+  }
+
+  function tandaiTerdekatSelesai() {
+    if (!surveyorPosition) {
+      alert("Aktifkan GPS dulu.");
+      return;
+    }
+
+    if (pointData.length === 0) {
+      alert("Upload KML/KMZ dulu.");
+      return;
+    }
+
+    let nearest = null;
+    let minDist = Infinity;
+
+    pointData.forEach(p => {
+      const d = map.distance(
+        [surveyorPosition.lat, surveyorPosition.lng],
+        [p.lat, p.lng]
+      );
+
+      if (d < minDist) {
+        minDist = d;
+        nearest = p;
+      }
+    });
+
+    if (!nearest) return;
+
+    if (minDist > RADIUS_SELESAI) {
+      alert(`Belum berada di titik. Jarak ke ${nearest.nama}: ${minDist.toFixed(2)} meter. Maksimal ${RADIUS_SELESAI} meter.`);
+      return;
+    }
+
+    tandaiSelesai(nearest.id);
+  }
+
+  function tandaiSelesai(id) {
+    statusData[id] = "selesai";
+    localStorage.setItem("status_gcp_icp", JSON.stringify(statusData));
+
+    const marker = pointMarkers[id];
+
+    if (marker) {
+      marker.setStyle({
+        color: "#16a34a",
+        fillColor: "#22c55e",
+        weight: 3
+      });
+
+      const p = pointData.find(x => x.id === id);
+      if (p) {
+        marker.bindPopup(`
+          <b>${p.nama}</b><br>
+          Tipe: ${p.tipe}<br>
+          Status: <b>Selesai</b><br>
+          Lat: ${p.lat.toFixed(7)}<br>
+          Lng: ${p.lng.toFixed(7)}
+        `);
+      }
+    }
+  }
+
+  function resetStatus() {
+    if (!confirm("Reset semua status selesai?")) return;
+
+    statusData = {};
+    localStorage.removeItem("status_gcp_icp");
+
+    pointData.forEach(p => {
+      const marker = pointMarkers[p.id];
+      if (marker) {
+        const warna = warnaTitik(p.tipe);
+        marker.setStyle({
+          color: warna,
+          fillColor: warna,
+          weight: 2
+        });
+      }
+    });
+  }
+</script>
+
 </body>
 </html>
