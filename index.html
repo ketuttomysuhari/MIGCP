@@ -20,8 +20,10 @@
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
+      height: 100%;
       font-family: Arial, sans-serif;
       background: #0f172a;
     }
@@ -29,25 +31,50 @@
     #map {
       width: 100%;
       height: 100vh;
+      z-index: 1;
+    }
+
+    #togglePanelBtn {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 1200;
+      width: auto;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 12px;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
     }
 
     .panel {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 999;
-      width: 380px;
-      max-height: calc(100vh - 24px);
+      top: 64px;
+      left: 14px;
+      z-index: 1100;
+      width: 390px;
+      max-height: calc(100vh - 82px);
       overflow-y: auto;
       background: rgba(255,255,255,0.97);
       padding: 14px;
-      border-radius: 16px;
-      box-shadow: 0 6px 28px rgba(0,0,0,0.28);
+      border-radius: 18px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.32);
+      transition: all 0.25s ease;
+    }
+
+    .panel.hidden {
+      transform: translateX(-430px);
+      opacity: 0;
+      pointer-events: none;
     }
 
     .panel h3 {
-      margin: 0 0 10px;
+      margin: 0 0 12px;
       font-size: 18px;
+      color: #0f172a;
     }
 
     input, button {
@@ -68,7 +95,7 @@
     }
 
     button:hover {
-      opacity: 0.9;
+      opacity: 0.92;
     }
 
     .btn-green {
@@ -90,6 +117,7 @@
       margin-top: 8px;
       font-size: 13px;
       line-height: 1.55;
+      color: #0f172a;
     }
 
     .chat-box {
@@ -114,6 +142,10 @@
       gap: 8px;
       font-size: 13px;
       margin: 6px 0;
+      background: white;
+      padding: 7px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
     }
 
     .layer-item input {
@@ -122,9 +154,9 @@
     }
 
     .surveyor-item {
-      padding: 6px;
+      padding: 7px;
       border-radius: 8px;
-      margin: 4px 0;
+      margin: 5px 0;
       background: white;
       cursor: pointer;
       border: 1px solid #e2e8f0;
@@ -139,19 +171,47 @@
       font-size: 12px;
     }
 
+    .status-ok {
+      color: #16a34a;
+      font-weight: bold;
+    }
+
+    .status-warn {
+      color: #dc2626;
+      font-weight: bold;
+    }
+
     @media (max-width: 768px) {
+      #togglePanelBtn {
+        top: 10px;
+        left: 10px;
+        padding: 9px 13px;
+        border-radius: 10px;
+      }
+
       .panel {
         left: 8px;
         right: 8px;
-        top: auto;
         bottom: 8px;
+        top: auto;
         width: auto;
-        max-height: 52vh;
-        border-radius: 16px;
+        max-height: 55vh;
+        border-radius: 18px;
       }
 
-      #map {
-        height: 100vh;
+      .panel.hidden {
+        transform: translateY(calc(100% + 30px));
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .chat-box {
+        height: 120px;
+      }
+
+      input, button {
+        font-size: 13px;
+        padding: 9px;
       }
     }
 
@@ -165,17 +225,26 @@
 
 <body>
 
-<div class="panel">
+<button id="togglePanelBtn" onclick="togglePanel()">☰ Menu</button>
+
+<div class="panel" id="controlPanel">
   <h3>Realtime GCP / ICP Monitoring</h3>
 
   <input type="text" id="surveyorName" placeholder="Nama surveyor, contoh: Surveyor 1" />
-  <button onclick="startSurveyor()">Aktifkan GPS</button>
+  <button onclick="startSurveyor()">Aktifkan GPS Saya</button>
 
   <input type="file" id="fileInput" accept=".kml,.kmz" multiple />
   <button class="btn-dark" onclick="uploadFiles()">Upload KML / KMZ ke Sistem</button>
 
   <button class="btn-green" onclick="markNearestDone()">Tandai Titik Terdekat Selesai</button>
   <button class="btn-red" onclick="resetPointStatus()">Reset Semua Status Titik</button>
+
+  <div class="box">
+    <b>Status Sistem</b><br>
+    Firebase: <span id="firebaseStatus" class="status-warn">menunggu...</span><br>
+    GPS: <span id="gpsStatus" class="status-warn">belum aktif</span><br>
+    Layer: <span id="layerStatus">0</span>
+  </div>
 
   <div class="box">
     <b>GPS Saya</b><br>
@@ -200,7 +269,7 @@
   <div class="box">
     <b>Chat Lapangan</b>
     <div id="chatBox" class="chat-box"></div>
-    <input type="text" id="chatInput" placeholder="Tulis pesan..." />
+    <input type="text" id="chatInput" placeholder="Tulis pesan..." onkeydown="if(event.key==='Enter') sendChat()" />
     <button onclick="sendChat()">Kirim Chat</button>
   </div>
 
@@ -221,13 +290,13 @@
   // 1. FIREBASE CONFIG
   // ==================================================
   const firebaseConfig = {
-    apiKey: "ISI_API_KEY_ANDA",
-    authDomain: "ISI_PROJECT.firebaseapp.com",
-    databaseURL: "https://ISI_PROJECT-default-rtdb.firebaseio.com",
-    projectId: "ISI_PROJECT",
-    storageBucket: "ISI_PROJECT.appspot.com",
-    messagingSenderId: "ISI_SENDER_ID",
-    appId: "ISI_APP_ID"
+    apiKey: "AIzaSyDYecpHx6lfG6_jaYmL-GG5aiZ_0FyhHAM",
+    authDomain: "callskb.firebaseapp.com",
+    databaseURL: "https://callskb.firebaseio.com",
+    projectId: "callskb",
+    storageBucket: "callskb.appspot.com",
+    messagingSenderId: "836684719733",
+    appId: "1:836684719733:web:monitoring"
   };
 
   firebase.initializeApp(firebaseConfig);
@@ -246,6 +315,9 @@
   let surveyorMarkers = {};
   let surveyorAccuracies = {};
 
+  let mySurveyorMarker = null;
+  let mySurveyorAccuracy = null;
+
   let selectedFiles = [];
   let myPosition = null;
   let myRef = null;
@@ -263,13 +335,20 @@
   // 3. INIT
   // ==================================================
   initMap();
+  testFirebase();
   listenSurveyors();
   listenLayers();
   listenPointStatus();
   listenChat();
 
   function initMap() {
-    map = L.map("map").setView([-8.3, 123.1], 15);
+    map = L.map("map", {
+      zoomControl: false
+    }).setView([-8.3, 123.1], 15);
+
+    L.control.zoom({
+      position: "bottomright"
+    }).addTo(map);
 
     baseLayers.osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 22,
@@ -287,7 +366,29 @@
     L.control.layers({
       "OpenStreetMap": baseLayers.osm,
       "Satelit Esri": baseLayers.satellite
+    }, {}, {
+      position: "topright"
     }).addTo(map);
+  }
+
+  function testFirebase() {
+    db.ref(".info/connected").on("value", function(snapshot) {
+      const connected = snapshot.val() === true;
+      const el = document.getElementById("firebaseStatus");
+
+      if (connected) {
+        el.innerText = "terhubung";
+        el.className = "status-ok";
+      } else {
+        el.innerText = "tidak terhubung";
+        el.className = "status-warn";
+      }
+    });
+  }
+
+  function togglePanel() {
+    const panel = document.getElementById("controlPanel");
+    panel.classList.toggle("hidden");
   }
 
   // ==================================================
@@ -303,35 +404,42 @@
       return;
     }
 
-    for (const file of selectedFiles) {
-      const ext = file.name.toLowerCase().split(".").pop();
+    try {
+      for (const file of selectedFiles) {
+        const ext = file.name.toLowerCase().split(".").pop();
 
-      if (ext !== "kml" && ext !== "kmz") {
-        alert("File harus .kml atau .kmz: " + file.name);
-        continue;
+        if (ext !== "kml" && ext !== "kmz") {
+          alert("File harus .kml atau .kmz: " + file.name);
+          continue;
+        }
+
+        const fileId = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
+        const cleanName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+        const storagePath = "kml_kmz/" + fileId + "_" + cleanName;
+
+        const ref = storage.ref(storagePath);
+
+        await ref.put(file);
+
+        const url = await ref.getDownloadURL();
+
+        await db.ref("layers/" + fileId).set({
+          id: fileId,
+          name: file.name,
+          url: url,
+          storagePath: storagePath,
+          createdAt: Date.now(),
+          uploadedBy: document.getElementById("surveyorName").value || "Unknown"
+        });
       }
 
-      const fileId = "layer_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
-      const storagePath = "kml_kmz/" + fileId + "_" + file.name;
-
-      const ref = storage.ref(storagePath);
-      await ref.put(file);
-
-      const url = await ref.getDownloadURL();
-
-      await db.ref("layers/" + fileId).set({
-        id: fileId,
-        name: file.name,
-        url: url,
-        storagePath: storagePath,
-        createdAt: Date.now(),
-        uploadedBy: document.getElementById("surveyorName").value || "Unknown"
-      });
+      alert("Upload berhasil. Layer akan tampil untuk semua pengguna.");
+      document.getElementById("fileInput").value = "";
+      selectedFiles = [];
+    } catch (err) {
+      console.error(err);
+      alert("Upload gagal. Cek Firebase Storage Rules dan firebaseConfig.");
     }
-
-    alert("File berhasil diupload. Layer akan muncul untuk semua pengguna.");
-    document.getElementById("fileInput").value = "";
-    selectedFiles = [];
   }
 
   // ==================================================
@@ -355,6 +463,8 @@
       return;
     }
 
+    document.getElementById("gpsStatus").innerText = "meminta izin lokasi...";
+
     watchId = navigator.geolocation.watchPosition(
       function(pos) {
         const lat = pos.coords.latitude;
@@ -363,9 +473,13 @@
 
         myPosition = { lat, lng, acc };
 
+        document.getElementById("gpsStatus").innerText = "aktif";
+        document.getElementById("gpsStatus").className = "status-ok";
         document.getElementById("lat").innerText = lat.toFixed(7);
         document.getElementById("lng").innerText = lng.toFixed(7);
         document.getElementById("acc").innerText = acc.toFixed(1);
+
+        drawMySurveyorMarker(lat, lng, acc, name);
 
         myRef.set({
           id: myId,
@@ -384,14 +498,63 @@
         }
       },
       function(err) {
+        document.getElementById("gpsStatus").innerText = "gagal";
+        document.getElementById("gpsStatus").className = "status-warn";
         alert("GPS gagal: " + err.message);
       },
       {
         enableHighAccuracy: true,
         maximumAge: 1000,
-        timeout: 10000
+        timeout: 15000
       }
     );
+  }
+
+  function drawMySurveyorMarker(lat, lng, acc, name) {
+    const pos = [lat, lng];
+
+    if (!mySurveyorMarker) {
+      mySurveyorMarker = L.circleMarker(pos, {
+        radius: 13,
+        color: "#1d4ed8",
+        fillColor: "#2563eb",
+        fillOpacity: 1,
+        weight: 4
+      }).addTo(map);
+
+      mySurveyorMarker.bindTooltip("Saya: " + name, {
+        permanent: true,
+        direction: "top"
+      });
+
+      mySurveyorMarker.bindPopup(`
+        <b>Posisi Saya</b><br>
+        Nama: ${escapeHtml(name)}<br>
+        Lat: ${lat.toFixed(7)}<br>
+        Lng: ${lng.toFixed(7)}<br>
+        Akurasi: ${acc.toFixed(1)} m
+      `);
+
+      mySurveyorAccuracy = L.circle(pos, {
+        radius: acc,
+        color: "#2563eb",
+        fillColor: "#60a5fa",
+        fillOpacity: 0.15,
+        weight: 1
+      }).addTo(map);
+    } else {
+      mySurveyorMarker.setLatLng(pos);
+      mySurveyorAccuracy.setLatLng(pos);
+      mySurveyorAccuracy.setRadius(acc);
+
+      mySurveyorMarker.bindPopup(`
+        <b>Posisi Saya</b><br>
+        Nama: ${escapeHtml(name)}<br>
+        Lat: ${lat.toFixed(7)}<br>
+        Lng: ${lng.toFixed(7)}<br>
+        Akurasi: ${acc.toFixed(1)} m
+      `);
+    }
   }
 
   function listenSurveyors() {
@@ -421,6 +584,8 @@
           </div>
         `;
 
+        if (id === myId) return;
+
         if (!surveyorMarkers[id]) {
           surveyorMarkers[id] = L.circleMarker(pos, {
             radius: 10,
@@ -434,7 +599,7 @@
             radius: s.accuracy || 5,
             color: "#2563eb",
             fillColor: "#60a5fa",
-            fillOpacity: 0.15,
+            fillOpacity: 0.12,
             weight: 1
           }).addTo(map);
         } else {
@@ -462,7 +627,14 @@
   }
 
   function focusSurveyor(id) {
+    if (id === myId && mySurveyorMarker) {
+      map.setView(mySurveyorMarker.getLatLng(), 20);
+      mySurveyorMarker.openPopup();
+      return;
+    }
+
     const marker = surveyorMarkers[id];
+
     if (marker) {
       map.setView(marker.getLatLng(), 20);
       marker.openPopup();
@@ -475,8 +647,11 @@
   function listenLayers() {
     db.ref("layers").on("value", async function(snapshot) {
       const layers = snapshot.val() || {};
+      const ids = Object.keys(layers);
 
-      for (const id of Object.keys(layers)) {
+      document.getElementById("layerStatus").innerText = ids.length;
+
+      for (const id of ids) {
         if (!layerGroups[id]) {
           await loadLayerFromUrl(layers[id]);
         }
@@ -534,6 +709,7 @@
       }
     } catch (err) {
       console.error("Gagal load layer:", layerInfo.name, err);
+      alert("Gagal membaca layer: " + layerInfo.name);
     }
   }
 
@@ -621,6 +797,7 @@
 
         if (geom !== "Point") {
           layer.bindTooltip(name || "Batas", { sticky: true });
+
           layer.bindPopup(`
             <b>${escapeHtml(name || "Batas")}</b><br>
             Tipe: ${type}<br>
@@ -751,6 +928,7 @@
     if (!myPosition) return;
 
     const points = Object.values(pointData);
+
     if (!points.length) return;
 
     let nearest = null;
