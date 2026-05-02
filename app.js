@@ -1,4 +1,4 @@
-const KML_URL = "https://raw.githubusercontent.com/ketuttomysuhari/MIGCP/master/lamatokan.kml";
+const KML_URL = "https://raw.githubusercontent.com/ketuttomysuhari/MIGCP/main/lamatokan.kml";
 const RADIUS_SELESAI = 25;
 
 let map;
@@ -19,11 +19,11 @@ let myPosition = null;
 let myRef = null;
 let watchId = null;
 
-let myId = localStorage.getItem("migcp_surveyor_id");
+let myId = sessionStorage.getItem("migcp_session_id");
 
 if (!myId) {
-  myId = "surveyor_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
-  localStorage.setItem("migcp_surveyor_id", myId);
+  myId = "surveyor_" + Date.now() + "_" + Math.floor(Math.random() * 999999);
+  sessionStorage.setItem("migcp_session_id", myId);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -114,7 +114,7 @@ function initFirebaseStatus() {
 
 async function loadKML() {
   try {
-    const response = await fetch(KML_URL + "?t=" + Date.now());
+    const response = await fetch(KML_URL + "?raw=1&t=" + Date.now());
 
     if (!response.ok) {
       throw new Error("KML tidak ditemukan: " + response.status);
@@ -122,6 +122,12 @@ async function loadKML() {
 
     const text = await response.text();
     const kml = new DOMParser().parseFromString(text, "text/xml");
+
+    const parserError = kml.querySelector("parsererror");
+    if (parserError) {
+      throw new Error("Format KML tidak valid.");
+    }
+
     const geojson = toGeoJSON.kml(kml);
 
     targetLayer.clearLayers();
@@ -208,10 +214,10 @@ async function loadKML() {
     }
 
   } catch (err) {
-    console.error(err);
+    console.error("KML gagal:", err);
     document.getElementById("kmlStatus").innerText = "gagal";
     document.getElementById("kmlStatus").className = "status-warn";
-    alert("KML gagal dibaca. Pastikan file data/lamatokan.kml ada.");
+    alert("KML gagal dibaca. Pastikan file RAW GitHub benar dan bisa dibuka langsung.");
   }
 }
 
@@ -247,11 +253,17 @@ function startSurveyor() {
 
       myRef.set({
         id: myId,
-        name,
-        lat,
-        lng,
+        name: name,
+        lat: lat,
+        lng: lng,
         accuracy: acc,
+        online: true,
         lastUpdate: Date.now()
+      }).then(() => {
+        console.log("Posisi terkirim:", myId, name, lat, lng);
+      }).catch(err => {
+        console.error("Gagal kirim posisi:", err);
+        alert("Gagal kirim posisi ke Firebase. Cek Realtime Database Rules.");
       });
 
       updateNearestPoint();
@@ -307,6 +319,7 @@ function drawMySurveyorMarker(lat, lng, acc, name) {
   mySurveyorMarker.bindPopup(`
     <b>Posisi Saya</b><br>
     Nama: ${escapeHtml(name)}<br>
+    ID: ${escapeHtml(myId)}<br>
     Lat: ${lat.toFixed(7)}<br>
     Lng: ${lng.toFixed(7)}<br>
     Akurasi: ${acc.toFixed(1)} m
@@ -316,10 +329,12 @@ function drawMySurveyorMarker(lat, lng, acc, name) {
 function listenSurveyors() {
   db.ref("surveyors").on("value", snap => {
     const data = snap.val() || {};
+    console.log("Data surveyors dari Firebase:", data);
+
     const ids = Object.keys(data);
 
     Object.keys(surveyorMarkers).forEach(id => {
-      if (!data[id] || id === myId) {
+      if (!data[id]) {
         if (surveyorMarkers[id]) surveyorLayer.removeLayer(surveyorMarkers[id]);
         if (surveyorAccuracies[id]) surveyorLayer.removeLayer(surveyorAccuracies[id]);
         delete surveyorMarkers[id];
@@ -347,7 +362,7 @@ function listenSurveyors() {
 
       if (!surveyorMarkers[id]) {
         surveyorMarkers[id] = L.circleMarker(pos, {
-          radius: 11,
+          radius: 12,
           color: "#0f766e",
           fillColor: "#14b8a6",
           fillOpacity: 1,
@@ -375,6 +390,7 @@ function listenSurveyors() {
       surveyorMarkers[id].bindPopup(`
         <b>${escapeHtml(s.name)}</b><br>
         Status: Online<br>
+        ID: ${escapeHtml(id)}<br>
         Lat: ${s.lat.toFixed(7)}<br>
         Lng: ${s.lng.toFixed(7)}<br>
         Akurasi: ${(s.accuracy || 0).toFixed(1)} m<br>
@@ -383,6 +399,9 @@ function listenSurveyors() {
     });
 
     document.getElementById("activeSurveyors").innerHTML = html || "-";
+  }, err => {
+    console.error("Gagal membaca surveyors:", err);
+    alert("Gagal membaca data surveyor dari Firebase. Cek Rules.");
   });
 }
 
@@ -488,6 +507,11 @@ function sendChat() {
     name,
     text,
     time: Date.now()
+  }).then(() => {
+    console.log("Chat terkirim:", name, text);
+  }).catch(err => {
+    console.error("Chat gagal:", err);
+    alert("Chat gagal terkirim. Cek Firebase Rules.");
   });
 
   input.value = "";
@@ -506,6 +530,9 @@ function listenChat() {
     `).join("");
 
     box.scrollTop = box.scrollHeight;
+  }, err => {
+    console.error("Gagal membaca chat:", err);
+    alert("Gagal membaca chat dari Firebase.");
   });
 }
 
