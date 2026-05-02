@@ -1,4 +1,4 @@
-const KML_URL = "data/lamatokan.kml";
+const KML_URL = "https://raw.githubusercontent.com/ketuttomysuhari/MIGCP/master/lamatokan.kml";
 const RADIUS_SELESAI = 25;
 
 let map;
